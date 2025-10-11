@@ -1,8 +1,8 @@
 # Use Node.js LTS version as base image
-FROM node:18-alpine
+FROM node:22-slim
 
 # Set working directory
-WORKDIR /app
+WORKDIR /src/app
 
 # Copy package files
 COPY package*.json ./
@@ -15,9 +15,6 @@ COPY . .
 
 # Build Next.js app
 RUN npm run build
-
-# Expose port 3000
-EXPOSE 3000
 
 # Start the application
 CMD ["npm", "run", "dev"]

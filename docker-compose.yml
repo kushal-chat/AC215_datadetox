@@ -1,0 +1,38 @@
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - OPENAI_API_KEY
+      # - VECTOR_STORE_ID
+    ports:
+      - "8000:8000"
+      # - "8080:8080"
+    volumes:
+      - ./backend:/app
+    tty: true
+    restart: unless-stopped
+    networks:
+      - datadetox-network
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - datadetox-network
+
+networks:
+  datadetox-network:
+    driver: bridge 
