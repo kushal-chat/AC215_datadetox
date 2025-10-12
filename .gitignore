@@ -44,7 +44,7 @@ next-env.d.ts
 
 # Python/Backend
 */.venv/
-*/__pycache__/
+*__pycache__/
 */.py[cod]
 */$py.class
 */.so
