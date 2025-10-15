@@ -7,8 +7,8 @@ services:
       - OPENAI_API_KEY
       # - VECTOR_STORE_ID
     ports:
-      - "8000:8000"
-      # - "8080:8080"
+      # - "8000:8000"
+      - "8080:8080"
     volumes:
       - ./backend:/app
     tty: true
@@ -33,30 +33,35 @@ services:
     networks:
       - datadetox-network
 
-  # rag_cli:
-  #   build: 
-  #     context: .
-  #     dockerfile: rag/Dockerfile
-  #   ports:
-  #     - "8001:8001"
-  #   volumes:
-  #     - ./rag:/app
-  #   depends_on:
-  #     - chromadb
-  #   restart: unless-stopped
-  #   networks:
-  #     - datadetox-network
+  rag_cli:
+    build: 
+      context: ./rag
+      dockerfile: Dockerfile
+    volumes:
+      - ./rag:/app
+      - ./data/model_doc:/app/data/model_doc
+    depends_on:
+      - chromadb
+    environment:
+      - HF_TOKEN
+    restart: unless-stopped
+    networks:
+      - datadetox-network
+    tty: true
+    stdin_open: true
 
   chromadb:
     image: chromadb/chroma:latest
     ports:
-        - 5432:5432
+        - 8000:8000
     volumes:
-        - ./docker-volumes/chromadb:/chroma/chroma
+        - ./data/chromadb:/chroma/chroma
     environment:
         - IS_PERSISTENT=TRUE
         - ANONYMIZED_TELEMETRY=FALSE
         - CHROMA_CORS_ALLOW_ORIGINS=["*"] # This is not recommended for production environments.
+    networks:
+      - datadetox-network
 
 networks:
   datadetox-network:

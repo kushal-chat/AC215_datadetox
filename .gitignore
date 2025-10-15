@@ -60,3 +60,6 @@ next-env.d.ts
 
 # data 
 data/
+
+# docker-volumes
+docker-volumes/

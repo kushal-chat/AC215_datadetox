@@ -60,8 +60,8 @@ def chunk_md_data(md_files: list[dict], chunk_size: int=256, chunk_overlap: int=
             })
     return chunked_files
 
-def init_db_client(port: int=5432): 
-    chroma_client = chromadb.HttpClient(host="chroma", port = port)
+def init_db_client(port: int=8000): 
+    chroma_client = chromadb.HttpClient(host="chromadb", port = port)
     # chroma_client = chromadb.PersistentClient(path="data/chroma")
     logger.info("Initialised ChromaDB client")
     return chroma_client 
@@ -129,8 +129,8 @@ def query_rag(query: str, collection_name: str, n_results: int=5):
 
 def main(
     init_db: bool = False,
-    input_data_path: str = None,
-    collection_name: str = None,
+    input_data_path: str = "data/model_doc",
+    collection_name: str = "hf_foundation_models",
     query: str = None,
     n_results: int = 5,
     chunk_size: int = 256,
