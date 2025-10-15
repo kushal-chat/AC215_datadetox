@@ -33,6 +33,31 @@ services:
     networks:
       - datadetox-network
 
+  # rag_db:
+  #   build: 
+  #     context: .
+  #     dockerfile: rag_db/Dockerfile
+  #   ports:
+  #     - "8001:8001"
+  #   volumes:
+  #     - ./rag_db:/app
+  #   depends_on:
+  #     - chromadb
+  #   restart: unless-stopped
+  #   networks:
+  #     - datadetox-network
+
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+        - 5432:5432
+    volumes:
+        - ./docker-volumes/chromadb:/chroma/chroma
+    environment:
+        - IS_PERSISTENT=TRUE
+        - ANONYMIZED_TELEMETRY=FALSE
+        - CHROMA_CORS_ALLOW_ORIGINS=["*"] # This is not recommended for production environments.
+
 networks:
   datadetox-network:
     driver: bridge 
