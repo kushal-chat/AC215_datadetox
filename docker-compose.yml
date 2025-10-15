@@ -33,14 +33,14 @@ services:
     networks:
       - datadetox-network
 
-  # rag_db:
+  # rag_cli:
   #   build: 
   #     context: .
-  #     dockerfile: rag_db/Dockerfile
+  #     dockerfile: rag/Dockerfile
   #   ports:
   #     - "8001:8001"
   #   volumes:
-  #     - ./rag_db:/app
+  #     - ./rag:/app
   #   depends_on:
   #     - chromadb
   #   restart: unless-stopped
