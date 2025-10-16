@@ -20,7 +20,6 @@ This RAG CLI tool provides functionality to:
 
 To run the containerised pipeline with docker, first start the `rag_cli` and `chromadb` containers by inputting the following commands at the root level of the project: 
 ```bash
-docker compose up -d chromadb
 docker compose up -d rag_cli
 ```
 
