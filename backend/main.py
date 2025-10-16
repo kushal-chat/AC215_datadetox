@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers.client import router
+from routers.health_check import router as health_check_router
+from routers.client import router as client_router
 from pydantic import BaseModel
 
 app = FastAPI(
@@ -10,7 +11,6 @@ app = FastAPI(
 )
 
 origins = [
-    "http://172.18.0.3:3000⁠",
     "http://localhost:3000⁠",
 ]
 
@@ -22,4 +22,5 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(router)
+app.include_router(client_router)
+app.include_router(health_check_router)
