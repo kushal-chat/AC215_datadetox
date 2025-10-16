@@ -111,7 +111,6 @@ def init_db_client(port: int=8000):
         ChromaClient: initialised ChromaDB client
     """
     chroma_client = chromadb.HttpClient(host="chromadb", port = port)
-    # chroma_client = chromadb.PersistentClient(path="data/chroma")
     logger.info("Initialised ChromaDB client")
     return chroma_client 
 
