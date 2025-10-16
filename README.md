@@ -9,7 +9,7 @@
 DataDetox is an AI-powered application designed to help users understand model lineages and their associated data. The current system leverages Retrieval-Augmented Generation (RAG) to provide enriched information about foundation models by retrieving relevant details from comprehensive model documentation from HuggingFace.
 
 ## Project Wireframe (Missing from Milestone 1)
-Screenshots of landing and chatbot pages are added to previous submitted MS1 pdf, see `report/AC215_MileStone_1.pdf`.
+Screenshots of landing and chatbot pages are added to previous submitted MS1 pdf, see [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
 
 ## Project Organization
 
@@ -66,7 +66,12 @@ cd AC215_datadetox
 
 ### 1. Data Source
 
-Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/src/transformers/models).
+Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/src/transformers/models). 
+
+- Download the whole folder using tools like [download-directory.github.io](https://download-directory.github.io/)
+- Save all the markdown files inside `data/model_doc` folder.
+- if `data/model_doc` doesn't exist, create it.
+
 
 **Data Preservation Note**: We intentionally did not preprocess the `.md` files downloaded from HuggingFace, to preserve all the details of the foundation model data. This ensures that the RAG system has access to complete and accurate information about each foundation model.
 
@@ -88,20 +93,23 @@ This RAG CLI tool uses ChromaDB and LlamaIndex, provides functionality to:
 
 #### Set up 
 
-To run the containerised pipeline with docker, first start the `rag_cli` and `chromadb` containers by inputting the following commands at the root level of the project: 
+**STEP 1:** To run the containerised pipeline with docker, first start the `rag_cli` and `chromadb` containers by inputting the following commands at the root level of the project: 
 ```bash
 docker compose up -d rag_cli
 ```
+You should see outputs like:
+![](img/ms2/docker_compose1.png)
 
-Go inside the rag_cli container with: 
+**STEP 2:** Go inside the rag_cli container with: 
 ```bash
-cd rag
 docker compose exec rag_cli bash 
 ```
 
+You will see your bash becomes something like: `root@98f1f5f277a9:/app#` (the number after "@" may be different)
+
 #### Initialise Database
 
-To create a new database collection from markdown documents:
+**STEP 3:** To create a new database collection from markdown documents:
 
 ```bash
 uv run python rag_cli.py --init_db=True --input_data_path="data/model_doc" --collection_name="hf_foundation_models"
@@ -114,9 +122,15 @@ uv run python rag_cli.py --init_db=True --input_data_path="data/model_doc" --col
 - `--chunk_size`: Size of text chunks in characters (default: 256)
 - `--chunk_overlap`: Overlap between chunks in characters (default: 32)
 
+You should see outputs like:
+![](img/ms2/init_db1.png)
+![](img/ms2/init_db2.png)
+![](img/ms2/init_db3.png) at the end of the output.
+
+
 #### Query Database
 
-To query the existing database:
+**STEP 4:** To query the existing database:
 
 ```bash
 uv run python rag_cli.py --query=<enter-your-query> --collection_name="hf_foundation_models" --n_results=5
@@ -127,6 +141,9 @@ uv run python rag_cli.py --query=<enter-your-query> --collection_name="hf_founda
 - `--collection_name`: Name of the ChromaDB collection to query
 - `--n_results`: Number of results to return (default: 5)
 
+You should see outputs like:
+![](img/ms2/query1.png) 
+![](img/ms2/query2.png)
 
 For more details, see [rag/README.md](rag/README.md).
 
