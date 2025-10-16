@@ -73,11 +73,15 @@ cd AC215_datadetox
 
 ### 1. Data Source
 
-Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/docs/source/en/model_doc). 
+Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/docs/source/en/model_doc) and are uploaded to our GCS bucket. 
 
-- Download the whole folder using tools like [download-directory.github.io](https://download-directory.github.io/)
-- Save all the markdown files inside `data/model_doc` folder.
-- if `data/model_doc` doesn't exist, create it.
+Download the data by running:
+```bash
+chmod +x download_model_doc.sh
+./download_model_doc.sh
+```
+
+You will see new 419 markdown files downloaded in `data/model_doc` folder.
 
 
 **Data Preservation Note**: We intentionally did not preprocess the `.md` files downloaded from HuggingFace, to preserve all the details of the foundation model data. This ensures that the RAG system has access to complete and accurate information about each foundation model.
