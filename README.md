@@ -8,14 +8,19 @@
 
 DataDetox is an AI-powered application designed to help users understand model lineages and their associated data. The current system leverages Retrieval-Augmented Generation (RAG) to provide enriched information about foundation models by retrieving relevant details from comprehensive model documentation from HuggingFace.
 
-## Project Wireframe (Missing from Milestone 1)
+## Project Wireframe & Workflow (Missing from Milestone 1)
 - Landing Page:
-![](img/ms1/wireframe_1.png)
-![](img/ms1/wireframe_2.png)
-![](img/ms1/wireframe_3.png)
+
+    ![](img/ms1/wireframe_1.png)
+    ![](img/ms1/wireframe_2.png)
+    ![](img/ms1/wireframe_3.png)
 
 - Chatbot Page:
-![](img/ms1/wireframe_4.png)
+
+    ![](img/ms1/wireframe_4.png)
+
+- Agentic Workflow (included in Milestone 1):
+    ![](img/ms1/workflow.svg)
 
 Screenshots of landing and chatbot pages also are added to previous submitted MS1 pdf, see Figure 3, 4, 5 in [report/AC215_MileStone_1.pdf](report/AC215_MileStone_1.pdf).
 
@@ -73,11 +78,15 @@ cd AC215_datadetox
 
 ### 1. Data Source
 
-Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/docs/source/en/model_doc). 
+Our data source for RAG are markdown files coming from the [HuggingFace Transformers documentation](https://github.com/huggingface/transformers/tree/main/docs/source/en/model_doc) and are uploaded to our GCS bucket. 
 
-- Download the whole folder using tools like [download-directory.github.io](https://download-directory.github.io/)
-- Save all the markdown files inside `data/model_doc` folder.
-- if `data/model_doc` doesn't exist, create it.
+Download the data by running:
+```bash
+chmod +x download_model_doc.sh
+./download_model_doc.sh
+```
+
+You will see new 419 markdown files downloaded in `data/model_doc` folder.
 
 
 **Data Preservation Note**: We intentionally did not preprocess the `.md` files downloaded from HuggingFace, to preserve all the details of the foundation model data. This ensures that the RAG system has access to complete and accurate information about each foundation model.
@@ -104,15 +113,17 @@ This RAG CLI tool uses ChromaDB and LlamaIndex, provides functionality to:
 ```bash
 docker compose up -d rag_cli
 ```
-You should see outputs like:
+- You should see outputs like:
 ![](img/ms2/docker_compose1.png)
+- Also inside your *docker desktop*, you should see the containers runnning like:
+![](img/ms2/docker_desktop.png)
 
 **STEP 2:** Go inside the rag_cli container with: 
 ```bash
 docker compose exec rag_cli bash 
 ```
 
-You will see your bash becomes something like: `root@98f1f5f277a9:/app#` (the number after "@" may be different)
+- You will see your bash becomes something like: `root@98f1f5f277a9:/app#` (the number after "@" may be different)
 
 #### Initialise Database
 
