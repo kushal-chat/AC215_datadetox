@@ -63,3 +63,6 @@ data/
 
 # docker-volumes
 docker-volumes/
+
+# ruff 
+.ruff_cache/

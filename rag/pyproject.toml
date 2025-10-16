@@ -9,6 +9,7 @@ dependencies = [
     "llama-index>=0.14.4",
     "python-dotenv>=1.0.0",
     "tqdm>=4.66.0",
+    "ruff>=0.14.0",
 ]
 
 [build-system]
