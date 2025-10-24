@@ -19,12 +19,15 @@ from tqdm import tqdm
 from dotenv import load_dotenv
 from google.cloud import storage
 from llama_index.core.text_splitter import SentenceSplitter
+from pydantic import BaseModel
+from typing import List, Optional
+import json
 
 import chromadb
 from chromadb.types import Collection
 from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-from agents import function_tool
+# from agents import function_tool
 
 # Load environment variables
 load_dotenv()
@@ -191,18 +194,21 @@ def init_database(bucket_name: str, prefix: str, collection_name: str, chunk_siz
     logger.info("Database initialisation complete")
     logger.info(f"Collection '{collection_name}' created with {collection.count()} entries")
 
-def query_rag(query: str, collection_name: str, n_results: int=5):
-    """
-    Query the existing database.
+class QueryResultItem(BaseModel):
+    id: str
+    document: str
+    distance: float
+    metadata: Optional[dict] = None
 
-    Args:
-        query (str): Query string to search for
-        collection_name (str): Name of ChromaDB collection to query
-        n_results (int): Number of results to return
 
-    Returns:
-        dict: Query results from ChromaDB
-    """
+class QueryResponse(BaseModel):
+    query: str
+    collection_name: str
+    results: List[QueryResultItem]
+
+
+def query_rag(query: str, collection_name: str, n_results: int = 5) -> QueryResponse:
+    """Query the existing database and return structured results."""
     chroma_client = init_db_client()
     try:
         collection = chroma_client.get_collection(
@@ -212,52 +218,70 @@ def query_rag(query: str, collection_name: str, n_results: int=5):
         logger.info(f"Collection '{collection_name}' found")
     except Exception:
         logger.error(f"Collection '{collection_name}' not found. Please initialise the database first.")
-        return
+        return QueryResponse(query=query, collection_name=collection_name, results=[])
 
     results = collection.query(
         query_texts=query,
         n_results=n_results,
     )
-    logger.info(f"Query results: {results}")
-    return results
 
-@function_tool
+    # Convert raw results into Pydantic structure
+    structured_results = []
+    for idx, (chunk_id, doc, dist, meta) in enumerate(
+        zip(
+            results["ids"][0],
+            results["documents"][0],
+            results["distances"][0],
+            results["metadatas"][0],
+        )
+    ):
+        structured_results.append(
+            QueryResultItem(
+                id=chunk_id,
+                document=doc,
+                distance=dist,
+                metadata=meta,
+            )
+        )
+
+    response = QueryResponse(
+        query=query,
+        collection_name=collection_name,
+        results=structured_results,
+    )
+    
+    logger.info(f"Query returned {len(structured_results)} results from '{collection_name}'")
+    return response
+
+# @function_tool
 def search_model_doc(
     init_db: bool = False,
     bucket_name: str = "datadetox",
     prefix: str = "model_doc",
     collection_name: str = "hf_foundation_models",
-    query: str = None,
+    query: str = "deepseek",
     n_results: int = 5,
     chunk_size: int = 256,
-    chunk_overlap: int = 32, 
-):
-    """
-    Search the database for relevant model documents.
-
-    Args:
-        init_db (bool): Flag to initialise database
-        bucket_name (str): Name of the GCP bucket
-        prefix (str): Prefix of the files to ingest
-        collection_name (str): Name of the ChromaDB collection
-        query (str): Query string for searching the database
-        n_results (int): Number of results to return for queries
-        chunk_size (int): Size of text chunks in characters
-        chunk_overlap (int): Overlap between chunks in characters
-    """
+    chunk_overlap: int = 32,
+) -> Optional[QueryResponse]:
+    """Search the database for relevant model documents."""
     if init_db:
         if not bucket_name or not prefix:
             logger.error("bucket_name and prefix are required for database initialisation")
-            return
+            return None
         try:
             init_database(bucket_name, prefix, collection_name, chunk_size, chunk_overlap)
         except Exception as e:
             logger.error(f"Error accessing GCP bucket: {str(e)}")
-            return
+            return None
+        return None
+
     elif query:
-        query_rag(query, collection_name, n_results)
+        return query_rag(query, collection_name, n_results)
+
     else:
         logger.error("Please specify either --init_db or --query")
+        return None
 
 if __name__ == "__main__":
     fire.Fire(search_model_doc)
