@@ -13,6 +13,7 @@ The CLI supports two main operations:
 """
 
 import os 
+import json
 import fire
 import logging
 from tqdm import tqdm
@@ -21,13 +22,12 @@ from google.cloud import storage
 from llama_index.core.text_splitter import SentenceSplitter
 from pydantic import BaseModel
 from typing import List, Optional
-import json
 
 import chromadb
 from chromadb.types import Collection
 from chromadb.utils.embedding_functions import DefaultEmbeddingFunction
 
-# from agents import function_tool
+from agents import function_tool
 
 # Load environment variables
 load_dotenv()
@@ -42,6 +42,18 @@ PROJECT_ID = os.getenv("PROJECT_ID", None)
 CHROMA_HOST = os.getenv("CHROMA_HOST", "localhost")
 CHROMA_PORT = os.getenv("CHROMA_PORT", 8000)
 GCP_CREDENTIALS_FILE = os.getenv("GCP_CREDENTIALS_FILE", None)
+
+class QueryResultItem(BaseModel):
+    id: str
+    document: str
+    distance: float
+    metadata: Optional[dict] = None
+
+class QueryResponse(BaseModel):
+    query: str
+    collection_name: str
+    results: List[QueryResultItem]
+
 
 ### Initialise Clients ### 
 def init_db_client(host: str=CHROMA_HOST, port: int=CHROMA_PORT): 
@@ -194,19 +206,6 @@ def init_database(bucket_name: str, prefix: str, collection_name: str, chunk_siz
     logger.info("Database initialisation complete")
     logger.info(f"Collection '{collection_name}' created with {collection.count()} entries")
 
-class QueryResultItem(BaseModel):
-    id: str
-    document: str
-    distance: float
-    metadata: Optional[dict] = None
-
-
-class QueryResponse(BaseModel):
-    query: str
-    collection_name: str
-    results: List[QueryResultItem]
-
-
 def query_rag(query: str, collection_name: str, n_results: int = 5) -> QueryResponse:
     """Query the existing database and return structured results."""
     chroma_client = init_db_client()
@@ -253,7 +252,7 @@ def query_rag(query: str, collection_name: str, n_results: int = 5) -> QueryResp
     logger.info(f"Query returned {len(structured_results)} results from '{collection_name}'")
     return response
 
-# @function_tool
+@function_tool
 def search_model_doc(
     init_db: bool = False,
     bucket_name: str = "datadetox",
