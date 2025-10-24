@@ -114,7 +114,7 @@ def chunk_md_data(md_files: list[dict], chunk_size: int=256, chunk_overlap: int=
     text_splitter = SentenceSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap)
     chunked_files = {"chunk_id": [], "chunk": [], "metadata": []}
     for md_file in md_files:
-        model_name = md_file["model_name"]
+        model_name = md_file["model_name"].split("/")[-1].replace(".md", "")
         content = md_file["content"]
         chunks = text_splitter.split_text(content)
         for i, chunk in enumerate(chunks):
@@ -237,7 +237,7 @@ def search_model_doc(
 
     Args:
         init_db (bool): Flag to initialise database
-        bucket_name (str): Name of the GCS bucket
+        bucket_name (str): Name of the GCP bucket
         prefix (str): Prefix of the files to ingest
         collection_name (str): Name of the ChromaDB collection
         query (str): Query string for searching the database
