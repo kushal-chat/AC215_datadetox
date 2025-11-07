@@ -23,5 +23,5 @@ COPY --from=builder /app/dist ./dist
 # Install serve to run the static site
 RUN npm install -g serve
 
-EXPOSE 8080
-CMD ["serve", "-s", "dist", "-l", "8080"]
+EXPOSE 3000
+CMD ["serve", "-s", "dist", "-l", "3000"]

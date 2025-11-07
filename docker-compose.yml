@@ -1,32 +1,29 @@
 services:
   backend:
-    build: 
+    build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
       - OPENAI_API_KEY
-      # - VECTOR_STORE_ID
+      - GOOGLE_APPLICATION_CREDENTIALS=/app/ac215-datadetox-service.json
     ports:
-      # - "8000:8000"
-      - "8080:8080"
+      - "8080:8000"
     volumes:
       - ./backend:/app
+      - ${HOST_KEY_FILE_PATH}:/app/ac215-datadetox-service.json
     tty: true
     restart: unless-stopped
     networks:
       - datadetox-network
 
   frontend:
-    build: 
+    build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - REACT_APP_API_URL=http://backend:8080
     depends_on:
       - backend
     restart: unless-stopped
