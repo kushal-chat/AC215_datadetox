@@ -67,4 +67,8 @@ docker-volumes/
 # ruff 
 .ruff_cache/
 
+# local key file
+backend/*.json
+
+# secrets
 secrets/

@@ -25,16 +25,24 @@ RUN set -ex; \
     pip install uv && \
     useradd -ms /bin/bash app -d /home/app -u 1000 && \
     mkdir -p /app && \
-    chown app:app /app
+    chown app:app /app && \
+    mkdir -p /tmp/papers && \
+    chown app:app /tmp/papers
 
 # Switch to the new user
 USER app
 WORKDIR /app
 
+# Add uv tools to PATH
+ENV PATH="/home/app/.local/bin:${PATH}"
+
 # Copy the source code
 COPY --chown=app:app . ./
 
 RUN uv sync
+
+# Install arxiv-mcp-server globally for the app user
+RUN uv tool install arxiv-mcp-server
 
 # Run with uvicorn
 CMD ["uv", "run", "fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000"]

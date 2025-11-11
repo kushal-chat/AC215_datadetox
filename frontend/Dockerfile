@@ -1,20 +1,27 @@
-# Use Node.js LTS version as base image
-FROM node:22-slim
+FROM node:20-slim AS builder
+WORKDIR /app
 
-# Set working directory
-WORKDIR /src/app
-
-# Copy package files
+# Copy package files from frontend directory
 COPY package*.json ./
 
 # Install dependencies
 RUN npm install
 
-# Copy rest of the application code
-COPY . .
+# Copy source code
+COPY . ./
 
-# Build Next.js app
+# Build the app
 RUN npm run build
 
-# Start the application
-CMD ["npm", "run", "dev"]
+# Production stage
+FROM node:20-slim AS runner
+WORKDIR /app
+
+# Copy built assets
+COPY --from=builder /app/dist ./dist
+
+# Install serve to run the static site
+RUN npm install -g serve
+
+EXPOSE 3000
+CMD ["serve", "-s", "dist", "-l", "3000"]

@@ -4,14 +4,16 @@ from routers.health_check import router as health_check_router
 from routers.client import router as client_router
 from pydantic import BaseModel
 
-app = FastAPI(
-    title="DataDetox",
-    description="DataDetox is a platform for interpretable fine-tuning and model / data trees.",
-    version="0.0.1",
-)
 
+app = FastAPI(
+    title="DataDetox API",
+    description="API for DataDetox application",
+    version="1.0.0"
+)
 origins = [
-    "http://localhost:3000⁠",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "*"  # Allow all origins during development
 ]
 
 app.add_middleware(
