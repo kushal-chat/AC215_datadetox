@@ -4,9 +4,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - HF_TOKEN=${HF_TOKEN}
+      - OPENAI_API_KEY
+      - HF_TOKEN
       - GOOGLE_APPLICATION_CREDENTIALS=/app/ac215-datadetox-service.json
+      - PROJECT_ID
+      - CHROMA_HOST
+      - CHROMA_PORT
+      - GCP_CREDENTIALS_FILE
     ports:
       - "8080:8000"
     volumes:
