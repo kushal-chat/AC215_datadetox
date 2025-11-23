@@ -58,8 +58,21 @@ next-env.d.ts
 *.swp
 *.swo
 
-# data 
-data/
+# data - ignore all data files
+data/**/*.json
+data/**/*.csv
+data/**/*.parquet
+data/**/*.pkl
+data/**/*.pickle
+data/**/*.h5
+data/**/*.hdf5
+data/**/*.npy
+data/**/*.npz
+data/**/*.md
+# Allow directories to be traversed (needed for nested .dvc files)
+!data/**/
+# But allow DVC metadata files (they're small and need to be tracked)
+!data/**/*.dvc
 
 # docker-volumes
 docker-volumes/

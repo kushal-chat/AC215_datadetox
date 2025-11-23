@@ -1,0 +1,205 @@
+"""
+Main orchestration script for model lineage scraping.
+
+This script coordinates the full pipeline:
+1. Scrape HuggingFace models
+2. Build lineage graph
+3. Load graph to Neo4j
+4. Version data with DVC
+"""
+import argparse
+import logging
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+from scrapers.huggingface_scraper import HuggingFaceScraper
+from graph.builder import LineageGraphBuilder
+from graph.neo4j_client import Neo4jClient
+from storage.data_store import DVCDataStore
+from config.settings import settings
+
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+def scrape_models(data_store: DVCDataStore, limit: int = None, keep_latest: Optional[int] = None) -> tuple[str, str, str]:
+    """Stage 1: Scrape models from HuggingFace."""
+    logger.info("=" * 60)
+    logger.info("Stage 1: Scraping HuggingFace models")
+    logger.info("=" * 60)
+    
+    scraper = HuggingFaceScraper()
+    models, relationships = scraper.scrape_all_models(limit=limit)
+    
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    
+    # Save with DVC
+    models_path = data_store.save_scraped_models(models, timestamp)
+    relationships_path = data_store.save_relationships(relationships, timestamp)
+    metadata_path = data_store.save_metadata({
+        "total_models": len(models),
+        "total_relationships": len(relationships),
+        "scrape_timestamp": timestamp,
+    }, timestamp)
+    
+    # Clean up old files if keep_latest is specified
+    if keep_latest is not None:
+        data_store.cleanup_old_files(keep_latest, "models")
+        data_store.cleanup_old_files(keep_latest, "relationships")
+        data_store.cleanup_old_files(keep_latest, "metadata")
+    
+    logger.info(f"✓ Scraped {len(models)} models and {len(relationships)} relationships")
+    return models_path, relationships_path, metadata_path
+
+def build_graph(data_store: DVCDataStore) -> tuple:
+    """Stage 2: Build lineage graph from scraped data."""
+    logger.info("=" * 60)
+    logger.info("Stage 2: Building lineage graph")
+    logger.info("=" * 60)
+    
+    # Load latest data
+    models = data_store.load_latest_models()
+    relationships = data_store.load_latest_relationships()
+    
+    if not models:
+        raise ValueError("No models found. Run --scrape first.")
+    
+    if not relationships:
+        logger.warning("No relationships found. Graph will only contain nodes.")
+        relationships = []
+    
+    # Build graph
+    builder = LineageGraphBuilder()
+    graph_data = builder.build_from_data(models, relationships)
+    
+    logger.info(f"✓ Built graph with {len(graph_data.models)} models, "
+               f"{len(graph_data.datasets)} datasets, "
+               f"and {len(graph_data.relationships)} relationships")
+    
+    return graph_data
+
+def load_to_neo4j(graph_data, clear_existing: bool = False):
+    """Stage 3: Load graph to Neo4j."""
+    logger.info("=" * 60)
+    logger.info("Stage 3: Loading graph to Neo4j")
+    logger.info("=" * 60)
+    
+    neo4j = Neo4jClient()
+    
+    try:
+        if clear_existing:
+            logger.info("Clearing existing Neo4j data...")
+            neo4j.clear_database()
+        
+        neo4j.load_graph(graph_data)
+        
+        # Get statistics
+        stats = neo4j.get_statistics()
+        logger.info(f"✓ Graph loaded successfully:")
+        logger.info(f"  - Models: {stats.get('model_count', 0)}")
+        logger.info(f"  - Datasets: {stats.get('dataset_count', 0)}")
+        logger.info(f"  - Relationships: {stats.get('relationship_count', 0)}")
+        
+    finally:
+        neo4j.close()
+
+def commit_data(data_store: DVCDataStore, message: str = None):
+    """Stage 4: Commit data to DVC and Git."""
+    logger.info("=" * 60)
+    logger.info("Stage 4: Committing to version control")
+    logger.info("=" * 60)
+    
+    if message is None:
+        message = f"Lineage data update: {datetime.now().isoformat()}"
+    
+    data_store.commit_version(message)
+    logger.info("✓ Data committed to version control")
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Scrape HuggingFace model lineage and build graph",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Run full pipeline
+  python lineage_scraper.py --full
+  
+  # Scrape only (limit to 100 models for testing)
+  python lineage_scraper.py --scrape --limit 100
+  
+  # Build graph from existing data
+  python lineage_scraper.py --build-graph
+  
+  # Load to Neo4j (clearing existing data)
+  python lineage_scraper.py --load-neo4j --clear
+        """
+    )
+    
+    parser.add_argument("--scrape", action="store_true",
+                       help="Run scraping stage")
+    parser.add_argument("--build-graph", action="store_true",
+                       help="Build lineage graph from scraped data")
+    parser.add_argument("--load-neo4j", action="store_true",
+                       help="Load graph to Neo4j")
+    parser.add_argument("--clear", action="store_true",
+                       help="Clear existing Neo4j data before loading")
+    parser.add_argument("--commit", action="store_true",
+                       help="Commit to DVC and Git")
+    parser.add_argument("--full", action="store_true",
+                       help="Run full pipeline (scrape -> build -> load -> commit)")
+    parser.add_argument("--limit", type=int, default=None,
+                       help="Limit number of models to scrape (for testing)")
+    parser.add_argument("--keep-latest", type=int, default=None,
+                       help="Keep only the N most recent files, delete older ones")
+    parser.add_argument("--message", type=str, default=None,
+                       help="Commit message for version control")
+    
+    args = parser.parse_args()
+    
+    # If --full, set all stages
+    if args.full:
+        args.scrape = True
+        args.build_graph = True
+        args.load_neo4j = True
+        args.commit = True
+    
+    if not any([args.scrape, args.build_graph, args.load_neo4j, args.commit]):
+        parser.print_help()
+        return
+    
+    try:
+        data_store = DVCDataStore()
+        
+        # Stage 1: Scrape
+        if args.scrape:
+            scrape_models(data_store, limit=args.limit, keep_latest=args.keep_latest)
+        
+        # Stage 2: Build graph
+        graph_data = None
+        if args.build_graph or args.load_neo4j:
+            graph_data = build_graph(data_store)
+        
+        # Stage 3: Load to Neo4j
+        if args.load_neo4j:
+            if graph_data is None:
+                graph_data = build_graph(data_store)
+            load_to_neo4j(graph_data, clear_existing=args.clear)
+        
+        # Stage 4: Commit
+        if args.commit:
+            commit_data(data_store, message=args.message)
+        
+        logger.info("=" * 60)
+        logger.info("Pipeline completed successfully!")
+        logger.info("=" * 60)
+        
+    except Exception as e:
+        logger.error(f"Pipeline failed: {e}", exc_info=True)
+        raise
+
+if __name__ == "__main__":
+    main()
+

@@ -65,6 +65,51 @@ services:
     networks:
       - datadetox-network
 
+  neo4j:
+    image: neo4j:5.15-community
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/password  # Change in production!
+      - NEO4J_PLUGINS=["apoc"]      # APOC for graph procedures
+      - NEO4J_dbms_memory_heap_max__size=2G
+    volumes:
+      - ./docker-volumes/neo4j:/data
+      - ./docker-volumes/neo4j/logs:/logs
+      - ./docker-volumes/neo4j/import:/var/lib/neo4j/import
+    networks:
+      - datadetox-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "password", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  model-lineage-scraper:
+    build:
+      context: ./model-lineage
+      dockerfile: Dockerfile
+    volumes:
+      - ./model-lineage:/app
+      - ./data/model-lineage:/app/data/model-lineage
+      - ./.dvc:/app/.dvc  # DVC config
+      - .:/workspace  # Mount project root for Git access (DVC requires Git)
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    environment:
+      - HF_TOKEN
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASSWORD=password
+    networks:
+      - datadetox-network
+    tty: true
+    stdin_open: true
+    restart: "no"  # Don't auto-restart batch jobs
+
 networks:
   datadetox-network:
     driver: bridge 
