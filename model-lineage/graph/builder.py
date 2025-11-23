@@ -1,6 +1,6 @@
 """Build lineage graph from scraped data."""
 import logging
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from graph.models import ModelNode, DatasetNode, Relationship, GraphData
 
@@ -11,18 +11,22 @@ class LineageGraphBuilder:
     
     def build_from_data(self, 
                        models: List[Dict[str, Any]], 
-                       relationships: List[Dict[str, Any]]) -> GraphData:
+                       relationships: List[Dict[str, Any]],
+                       datasets: Optional[List[Dict[str, Any]]] = None) -> GraphData:
         """
-        Build graph data structure from scraped models and relationships.
+        Build graph data structure from scraped models, datasets, and relationships.
         
         Args:
             models: List of model dictionaries
             relationships: List of relationship dictionaries
+            datasets: Optional list of dataset dictionaries (if None, will infer from relationships)
             
         Returns:
             GraphData object
         """
-        logger.info(f"Building graph from {len(models)} models and {len(relationships)} relationships")
+        logger.info(f"Building graph from {len(models)} models, "
+                   f"{len(datasets) if datasets else 0} datasets, "
+                   f"and {len(relationships)} relationships")
         
         # Convert models to ModelNode objects
         model_nodes = []
@@ -34,20 +38,30 @@ class LineageGraphBuilder:
                 logger.warning(f"Failed to create model node for {model_data.get('model_id')}: {e}")
                 continue
         
-        # Extract datasets from relationships
-        dataset_ids = set()
-        for rel in relationships:
-            if rel.get("target_type") == "dataset":
-                dataset_ids.add(rel["target"])
-        
-        # Create dataset nodes (minimal info since we may not have scraped them)
+        # Convert datasets to DatasetNode objects
         dataset_nodes = []
-        for dataset_id in dataset_ids:
-            dataset_node = DatasetNode(
-                dataset_id=dataset_id,
-                tags=[]
-            )
-            dataset_nodes.append(dataset_node)
+        if datasets:
+            for dataset_data in datasets:
+                try:
+                    dataset_node = DatasetNode(**dataset_data)
+                    dataset_nodes.append(dataset_node)
+                except Exception as e:
+                    logger.warning(f"Failed to create dataset node for {dataset_data.get('dataset_id')}: {e}")
+                    continue
+        
+        # If no datasets provided, infer from relationships
+        if not datasets:
+            dataset_ids = set()
+            for rel in relationships:
+                if rel.get("target_type") == "dataset":
+                    dataset_ids.add(rel["target"])
+            
+            for dataset_id in dataset_ids:
+                dataset_node = DatasetNode(
+                    dataset_id=dataset_id,
+                    tags=[]
+                )
+                dataset_nodes.append(dataset_node)
         
         # Convert relationships to Relationship objects
         relationship_objects = []

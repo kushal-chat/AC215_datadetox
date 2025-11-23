@@ -25,22 +25,43 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def scrape_models(data_store: DVCDataStore, limit: int = None, keep_latest: Optional[int] = None) -> tuple[str, str, str]:
-    """Stage 1: Scrape models from HuggingFace."""
+def scrape_models(data_store: DVCDataStore, limit: int = None, keep_latest: Optional[int] = None) -> tuple[str, str, str, str]:
+    """Stage 1: Scrape models and datasets from HuggingFace."""
     logger.info("=" * 60)
-    logger.info("Stage 1: Scraping HuggingFace models")
+    logger.info("Stage 1: Scraping HuggingFace models and datasets")
     logger.info("=" * 60)
     
     scraper = HuggingFaceScraper()
-    models, relationships = scraper.scrape_all_models(limit=limit)
+    models, datasets, relationships = scraper.scrape_all_models(limit=limit)
+    
+    # Collect unique dataset IDs for scraping
+    dataset_ids = list(set(d["dataset_id"] for d in datasets))
+    
+    # Scrape datasets to get full info and additional relationships
+    if dataset_ids:
+        logger.info(f"Scraping {len(dataset_ids)} datasets...")
+        scraped_datasets, dataset_rels = scraper.scrape_datasets(dataset_ids)
+        
+        # Merge scraped datasets with ones found from model tags
+        dataset_dict = {d["dataset_id"]: d for d in datasets}
+        for dataset in scraped_datasets:
+            if dataset["dataset_id"] not in dataset_dict:
+                datasets.append(dataset)
+            else:
+                # Update with more complete info
+                dataset_dict[dataset["dataset_id"]].update(dataset)
+        
+        relationships.extend(dataset_rels)
     
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     
     # Save with DVC
     models_path = data_store.save_scraped_models(models, timestamp)
+    datasets_path = data_store.save_scraped_datasets(datasets, timestamp)
     relationships_path = data_store.save_relationships(relationships, timestamp)
     metadata_path = data_store.save_metadata({
         "total_models": len(models),
+        "total_datasets": len(datasets),
         "total_relationships": len(relationships),
         "scrape_timestamp": timestamp,
     }, timestamp)
@@ -48,11 +69,12 @@ def scrape_models(data_store: DVCDataStore, limit: int = None, keep_latest: Opti
     # Clean up old files if keep_latest is specified
     if keep_latest is not None:
         data_store.cleanup_old_files(keep_latest, "models")
+        data_store.cleanup_old_files(keep_latest, "datasets")
         data_store.cleanup_old_files(keep_latest, "relationships")
         data_store.cleanup_old_files(keep_latest, "metadata")
     
-    logger.info(f"✓ Scraped {len(models)} models and {len(relationships)} relationships")
-    return models_path, relationships_path, metadata_path
+    logger.info(f"✓ Scraped {len(models)} models, {len(datasets)} datasets, and {len(relationships)} relationships")
+    return models_path, datasets_path, relationships_path, metadata_path
 
 def build_graph(data_store: DVCDataStore) -> tuple:
     """Stage 2: Build lineage graph from scraped data."""

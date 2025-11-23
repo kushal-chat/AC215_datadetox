@@ -1,11 +1,13 @@
 """HuggingFace Hub scraper for model information and relationships."""
+import json
 import logging
 import re
 import time
-from typing import List, Dict, Any, Optional
-from huggingface_hub import HfApi, ModelInfo
+from typing import List, Dict, Any, Optional, Tuple
+from huggingface_hub import HfApi, ModelInfo, DatasetInfo
 from tqdm import tqdm
 import requests
+from bs4 import BeautifulSoup
 
 from config.settings import settings
 
@@ -20,7 +22,7 @@ class HuggingFaceScraper:
         self.rate_limit_delay = settings.RATE_LIMIT_DELAY
     
     def scrape_all_models(self, 
-                         limit: Optional[int] = None) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+                         limit: Optional[int] = None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]], List[Dict[str, Any]]]:
         """
         Scrape all models from HuggingFace Hub.
         
@@ -28,12 +30,14 @@ class HuggingFaceScraper:
             limit: Maximum number of models to scrape (None for all)
             
         Returns:
-            Tuple of (models list, relationships list)
+            Tuple of (models list, datasets list, relationships list)
         """
         logger.info("Starting HuggingFace model scraping...")
         
         models = []
+        datasets = []
         relationships = []
+        dataset_ids_seen = set()
         
         # Get all models
         try:
@@ -52,11 +56,23 @@ class HuggingFaceScraper:
                     model_data = self._extract_model_info(model_info)
                     models.append(model_data)
                     
+                    # Extract model-to-model relationships
                     try:
                         model_rels = self._extract_relationships(model_info, model_data)
                         relationships.extend(model_rels)
                     except Exception as rel_error:
                         logger.debug(f"Could not extract relationships for {model_info.id}: {rel_error}")
+                    
+                    # Extract dataset relationships from model tags
+                    try:
+                        dataset_rels, new_datasets = self._extract_dataset_relationships_from_model(model_info, model_data)
+                        relationships.extend(dataset_rels)
+                        for dataset in new_datasets:
+                            if dataset["dataset_id"] not in dataset_ids_seen:
+                                datasets.append(dataset)
+                                dataset_ids_seen.add(dataset["dataset_id"])
+                    except Exception as dataset_error:
+                        logger.debug(f"Could not extract dataset relationships for {model_info.id}: {dataset_error}")
                     
                     time.sleep(self.rate_limit_delay)
                     
@@ -68,8 +84,8 @@ class HuggingFaceScraper:
             logger.error(f"Error listing models: {e}")
             raise
         
-        logger.info(f"Scraped {len(models)} models and {len(relationships)} relationships")
-        return models, relationships
+        logger.info(f"Scraped {len(models)} models, {len(datasets)} datasets, and {len(relationships)} relationships")
+        return models, datasets, relationships
     
     def _extract_model_info(self, model_info: ModelInfo) -> Dict[str, Any]:
         """Extract relevant information from a model."""
@@ -120,6 +136,188 @@ class HuggingFaceScraper:
                 
         except Exception as e:
             logger.debug(f"Could not extract relationships for {model_info.id}: {e}")
+        
+        return relationships
+    
+    def _extract_dataset_relationships_from_model(self, model_info: ModelInfo, model_data: Dict[str, Any]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Extract dataset relationships from model tags with 'dataset:' prefix.
+        
+        Returns:
+            Tuple of (relationships list, datasets list)
+        """
+        relationships = []
+        datasets = []
+        model_id = model_data["model_id"]
+        
+        # Extract datasets from tags
+        dataset_tags = [tag for tag in model_data.get("tags", []) if tag.startswith("dataset:")]
+        
+        for tag in dataset_tags:
+            # Remove 'dataset:' prefix
+            dataset_id = tag.replace("dataset:", "").strip()
+            if dataset_id:
+                # Normalize dataset ID format
+                # Tags might be like "dataset:dataset-name" or "dataset:author/dataset-name"
+                if "/" not in dataset_id:
+                    # If no author, try to find it from common dataset patterns
+                    # Many datasets are under their own namespace or common orgs
+                    # For now, keep as-is and let the dataset scraping handle it
+                    pass
+                
+                relationships.append({
+                    "source": model_id,
+                    "target": dataset_id,
+                    "relationship_type": "trained_on",
+                    "source_type": "model",
+                    "target_type": "dataset",
+                })
+                
+                # Add dataset to list (minimal info, will be enriched during scraping)
+                author = dataset_id.split("/")[0] if "/" in dataset_id else None
+                datasets.append({
+                    "dataset_id": dataset_id,
+                    "author": author,
+                    "downloads": None,
+                    "tags": [],
+                })
+        
+        return relationships, datasets
+    
+    def scrape_datasets(self, dataset_ids: List[str], limit: Optional[int] = None) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """
+        Scrape datasets and extract relationships from dataset cards.
+        
+        Args:
+            dataset_ids: List of dataset IDs to scrape
+            limit: Maximum number of datasets to scrape (None for all)
+            
+        Returns:
+            Tuple of (datasets list, relationships list)
+        """
+        logger.info(f"Starting dataset scraping for {len(dataset_ids)} datasets...")
+        
+        datasets = []
+        relationships = []
+        
+        dataset_list = dataset_ids[:limit] if limit else dataset_ids
+        
+        for dataset_id in tqdm(dataset_list, desc="Scraping datasets"):
+            try:
+                # Normalize dataset ID if needed
+                if "/" not in dataset_id:
+                    # Try to find dataset by searching - for now, skip if no author
+                    logger.debug(f"Skipping dataset {dataset_id} - no author specified")
+                    continue
+                
+                # Get dataset info
+                dataset_info = self.api.dataset_info(dataset_id)
+                dataset_data = self._extract_dataset_info(dataset_info)
+                datasets.append(dataset_data)
+                
+                # Extract relationships from dataset card
+                try:
+                    dataset_rels = self._extract_relationships_from_dataset_card(dataset_id)
+                    relationships.extend(dataset_rels)
+                except Exception as rel_error:
+                    logger.debug(f"Could not extract relationships from dataset {dataset_id}: {rel_error}")
+                
+                time.sleep(self.rate_limit_delay)
+                
+            except Exception as e:
+                logger.warning(f"Error processing dataset {dataset_id}: {e}")
+                continue
+        
+        logger.info(f"Scraped {len(datasets)} datasets and {len(relationships)} relationships")
+        return datasets, relationships
+    
+    def _extract_dataset_info(self, dataset_info: DatasetInfo) -> Dict[str, Any]:
+        """Extract relevant information from a dataset."""
+        created_at = getattr(dataset_info, "created_at", None)
+        updated_at = getattr(dataset_info, "updated_at", None)
+        
+        return {
+            "dataset_id": dataset_info.id,
+            "author": dataset_info.author,
+            "downloads": getattr(dataset_info, "downloads", None),
+            "tags": dataset_info.tags or [],
+            "created_at": created_at.isoformat() if created_at else None,
+            "updated_at": updated_at.isoformat() if updated_at else None,
+        }
+    
+    def _extract_relationships_from_dataset_card(self, dataset_id: str) -> List[Dict[str, Any]]:
+        """
+        Extract relationships from dataset card showing models trained on this dataset.
+        Looks for the "Models trained or fine-tuned on [dataset]" section.
+        """
+        relationships = []
+        
+        try:
+            dataset_url = f"https://huggingface.co/datasets/{dataset_id}"
+            headers = {}
+            if settings.HF_TOKEN:
+                headers["Authorization"] = f"Bearer {settings.HF_TOKEN}"
+            
+            response = requests.get(dataset_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Look for section with models trained on this dataset
+            # The section might be titled "Models trained or fine-tuned on [dataset]"
+            # or similar variations
+            headings = soup.find_all(['h2', 'h3', 'h4'], string=lambda text: text and (
+                'model' in text.lower() and ('train' in text.lower() or 'fine-tun' in text.lower() or 'finetun' in text.lower())
+            ))
+            
+            for heading in headings:
+                # Find the parent container
+                container = heading.find_next_sibling(['div', 'section', 'ul', 'ol'])
+                if not container:
+                    container = heading.parent
+                
+                # Look for model links
+                model_links = container.find_all('a', href=re.compile(r'/models/'))
+                
+                for link in model_links:
+                    href = link.get('href', '')
+                    # Extract model ID from href (e.g., /models/author/model-name)
+                    match = re.search(r'/models/([^/]+/[^/]+)', href)
+                    if match:
+                        model_id = match.group(1)
+                        relationships.append({
+                            "source": model_id,
+                            "target": dataset_id,
+                            "relationship_type": "trained_on",
+                            "source_type": "model",
+                            "target_type": "dataset",
+                        })
+            
+            # Also check for JSON data in script tags (common pattern on HF)
+            script_tags = soup.find_all('script', type='application/json')
+            for script in script_tags:
+                try:
+                    data = json.loads(script.string)
+                    # Look for model references in the data structure
+                    # This is a heuristic - HF's structure may vary
+                    if isinstance(data, dict):
+                        models = data.get('models', [])
+                        if isinstance(models, list):
+                            for model in models:
+                                if isinstance(model, dict) and 'id' in model:
+                                    model_id = model['id']
+                                    relationships.append({
+                                        "source": model_id,
+                                        "target": dataset_id,
+                                        "relationship_type": "trained_on",
+                                        "source_type": "model",
+                                        "target_type": "dataset",
+                                    })
+                except (json.JSONDecodeError, KeyError):
+                    continue
+                    
+        except Exception as e:
+            logger.debug(f"Error extracting relationships from dataset card {dataset_id}: {e}")
         
         return relationships
     

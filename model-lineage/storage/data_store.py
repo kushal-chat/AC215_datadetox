@@ -87,11 +87,29 @@ class DVCDataStore:
         logger.info(f"Saved {len(models)} models to {filepath}")
         return str(filepath)
     
+    def save_scraped_datasets(self, datasets: List[Dict[str, Any]], 
+                             timestamp: Optional[str] = None) -> str:
+        """Save scraped dataset data with DVC tracking."""
+        if timestamp is None:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        
+        filename = f"datasets_{timestamp}.json"
+        filepath = self.raw_path / "datasets" / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+        
+        with open(filepath, 'w') as f:
+            json.dump(datasets, f, indent=2)
+        
+        self._dvc_add(filepath)
+        
+        logger.info(f"Saved {len(datasets)} datasets to {filepath}")
+        return str(filepath)
+    
     def save_relationships(self, relationships: List[Dict[str, Any]],
                           timestamp: Optional[str] = None) -> str:
         """
-        Save model relationships with DVC tracking.
-        Automatically filters to only include: finetuned, adapters, merges, quantizations
+        Save relationships with DVC tracking.
+        Automatically filters to only include: finetuned, adapters, merges, quantizations, trained_on
         """
         if timestamp is None:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
@@ -125,7 +143,7 @@ class DVCDataStore:
             Filtered list of relationships
         """
         if allowed_types is None:
-            allowed_types = ["finetuned", "adapters", "merges", "quantizations"]
+            allowed_types = ["finetuned", "adapters", "merges", "quantizations", "trained_on"]
         
         filtered = [
             rel for rel in relationships 
@@ -298,6 +316,9 @@ class DVCDataStore:
         if file_type == "models":
             directory = self.raw_path / "models"
             pattern = "models_*.json"
+        elif file_type == "datasets":
+            directory = self.raw_path / "datasets"
+            pattern = "datasets_*.json"
         elif file_type == "relationships":
             directory = self.raw_path / "relationships"
             pattern = "relationships_*.json"
