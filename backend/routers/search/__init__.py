@@ -3,13 +3,13 @@ import logging
 from termcolor_dg import logging_basic_color_config
 
 logging_basic_color_config()
-logging.log(logging.INFO, '🙅🙅🙅 logger successful 🙅🙅🙅')
+logging.log(logging.INFO, "🙅🙅🙅 logger successful 🙅🙅🙅")
 
 LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
 logging_basic_color_config()
 logging.basicConfig(
-    level=logging.INFO,          
+    level=logging.INFO,
     format=LOG_FORMAT,
 )
 logging.getLogger("httpcore.http11").setLevel(logging.DEBUG)

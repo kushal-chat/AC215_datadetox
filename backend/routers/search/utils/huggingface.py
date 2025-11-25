@@ -11,10 +11,9 @@ logger = logging.getLogger(__name__)
 hf_token = os.getenv("HF_TOKEN")
 hf_api = HfApi(token=hf_token)
 
+
 def search_models(
-    query: str,
-    limit: int = 5,
-    sort: str = "downloads"
+    query: str, limit: int = 5, sort: str = "downloads"
 ) -> List[Dict[str, str]]:
     """
     Search for models on HuggingFace Hub.
@@ -32,10 +31,7 @@ def search_models(
 
         # Search models
         models = hf_api.list_models(
-            search=query,
-            limit=limit,
-            sort=sort,
-            direction=-1  # Descending order
+            search=query, limit=limit, sort=sort, direction=-1  # Descending order
         )
 
         results = []
@@ -49,7 +45,9 @@ def search_models(
                 "pipeline_tag": model.pipeline_tag or "Unknown",
                 "url": f"https://huggingface.co/{model.id}",
                 "created_at": str(model.created_at) if model.created_at else "Unknown",
-                "last_modified": str(model.last_modified) if model.last_modified else "Unknown",
+                "last_modified": (
+                    str(model.last_modified) if model.last_modified else "Unknown"
+                ),
             }
             results.append(model_info)
 
@@ -62,9 +60,7 @@ def search_models(
 
 
 def search_datasets(
-    query: str,
-    limit: int = 5,
-    sort: str = "downloads"
+    query: str, limit: int = 5, sort: str = "downloads"
 ) -> List[Dict[str, str]]:
     """
     Search for datasets on HuggingFace Hub.
@@ -82,10 +78,7 @@ def search_datasets(
 
         # Search datasets
         datasets = hf_api.list_datasets(
-            search=query,
-            limit=limit,
-            sort=sort,
-            direction=-1  # Descending order
+            search=query, limit=limit, sort=sort, direction=-1  # Descending order
         )
 
         results = []
@@ -97,8 +90,12 @@ def search_datasets(
                 "likes": dataset.likes or 0,
                 "tags": dataset.tags or [],
                 "url": f"https://huggingface.co/datasets/{dataset.id}",
-                "created_at": str(dataset.created_at) if dataset.created_at else "Unknown",
-                "last_modified": str(dataset.last_modified) if dataset.last_modified else "Unknown",
+                "created_at": (
+                    str(dataset.created_at) if dataset.created_at else "Unknown"
+                ),
+                "last_modified": (
+                    str(dataset.last_modified) if dataset.last_modified else "Unknown"
+                ),
             }
             results.append(dataset_info)
 
@@ -144,8 +141,12 @@ def get_model_card(model_id: str) -> Optional[Dict[str, str]]:
             "library_name": model_info.library_name or "Unknown",
             "url": f"https://huggingface.co/{model_info.id}",
             "card_text": card_text or "Model card not available",
-            "created_at": str(model_info.created_at) if model_info.created_at else "Unknown",
-            "last_modified": str(model_info.last_modified) if model_info.last_modified else "Unknown",
+            "created_at": (
+                str(model_info.created_at) if model_info.created_at else "Unknown"
+            ),
+            "last_modified": (
+                str(model_info.last_modified) if model_info.last_modified else "Unknown"
+            ),
         }
 
         logger.info(f"Successfully fetched model card for {model_id}")
@@ -194,8 +195,14 @@ def get_dataset_card(dataset_id: str) -> Optional[Dict[str, str]]:
             "tags": dataset_info.tags or [],
             "url": f"https://huggingface.co/datasets/{dataset_info.id}",
             "card_text": card_text or "Dataset card not available",
-            "created_at": str(dataset_info.created_at) if dataset_info.created_at else "Unknown",
-            "last_modified": str(dataset_info.last_modified) if dataset_info.last_modified else "Unknown",
+            "created_at": (
+                str(dataset_info.created_at) if dataset_info.created_at else "Unknown"
+            ),
+            "last_modified": (
+                str(dataset_info.last_modified)
+                if dataset_info.last_modified
+                else "Unknown"
+            ),
         }
 
         logger.info(f"Successfully fetched dataset card for {dataset_id}")
@@ -251,7 +258,10 @@ def format_search_results(models: List[Dict], datasets: List[Dict]) -> str:
 
     return "\n".join(output)
 
-def search_huggingface_function(query: str, include_models: bool = True, include_datasets: bool = True) -> str:
+
+def search_huggingface_function(
+    query: str, include_models: bool = True, include_datasets: bool = True
+) -> str:
     """
     Search HuggingFace Hub for models and/or datasets.
 
@@ -278,8 +288,12 @@ def search_huggingface_function(query: str, include_models: bool = True, include
 
 
 @function_tool
-def search_huggingface(query: str, include_models: bool = True, include_datasets: bool = True) -> str:
+def search_huggingface(
+    query: str, include_models: bool = True, include_datasets: bool = True
+) -> str:
     """
     Function tool version of search_huggingface.
     """
-    return search_huggingface_function(query, include_models=include_models, include_datasets=include_datasets)
+    return search_huggingface_function(
+        query, include_models=include_models, include_datasets=include_datasets
+    )

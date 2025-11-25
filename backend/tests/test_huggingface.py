@@ -10,6 +10,7 @@ from routers.search.utils import huggingface
 # Many of these tests are LLM generated to have random
 # information feasible for large-scale testing
 
+
 class DummyModel:
     def __init__(
         self,
@@ -68,7 +69,9 @@ def test_search_models_success(monkeypatch: pytest.MonkeyPatch) -> None:
         assert direction == -1
         return dummy_models
 
-    monkeypatch.setattr(huggingface.hf_api, "list_models", fake_list_models, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "list_models", fake_list_models, raising=False
+    )
 
     results = huggingface.search_models("bert", limit=3, sort="downloads")
 
@@ -79,11 +82,15 @@ def test_search_models_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert results[1]["id"] == "b/model-2"
 
 
-def test_search_models_error_returns_empty_list(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_search_models_error_returns_empty_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def fake_list_models(*, search: str, limit: int, sort: str, direction: int):
         raise RuntimeError("Boom")
 
-    monkeypatch.setattr(huggingface.hf_api, "list_models", fake_list_models, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "list_models", fake_list_models, raising=False
+    )
 
     results = huggingface.search_models("anything")
     assert results == []
@@ -105,7 +112,9 @@ def test_search_datasets_success(monkeypatch: pytest.MonkeyPatch) -> None:
         assert direction == -1
         return dummy_datasets
 
-    monkeypatch.setattr(huggingface.hf_api, "list_datasets", fake_list_datasets, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "list_datasets", fake_list_datasets, raising=False
+    )
 
     results = huggingface.search_datasets("wmt", limit=2, sort="downloads")
 
@@ -115,11 +124,15 @@ def test_search_datasets_success(monkeypatch: pytest.MonkeyPatch) -> None:
     assert results[1]["downloads"] == 222
 
 
-def test_search_datasets_error_returns_empty_list(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_search_datasets_error_returns_empty_list(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     def fake_list_datasets(*, search: str, limit: int, sort: str, direction: int):
         raise RuntimeError("Boom")
 
-    monkeypatch.setattr(huggingface.hf_api, "list_datasets", fake_list_datasets, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "list_datasets", fake_list_datasets, raising=False
+    )
 
     results = huggingface.search_datasets("anything")
     assert results == []
@@ -129,7 +142,9 @@ def test_get_model_card_error_returns_none(monkeypatch: pytest.MonkeyPatch) -> N
     def fake_model_info(model_id: str):
         raise RuntimeError("HTTP 500")
 
-    monkeypatch.setattr(huggingface.hf_api, "model_info", fake_model_info, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "model_info", fake_model_info, raising=False
+    )
 
     result = huggingface.get_model_card("does-not-exist")
     assert result is None
@@ -138,7 +153,9 @@ def test_get_model_card_error_returns_none(monkeypatch: pytest.MonkeyPatch) -> N
 # ---------- get_dataset_card ----------
 
 
-def test_get_dataset_card_success_with_card_text(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_dataset_card_success_with_card_text(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     info = DummyDataset(_id="user/dataset-card", downloads=999)
 
     def fake_dataset_info(dataset_id: str):
@@ -149,7 +166,9 @@ def test_get_dataset_card_success_with_card_text(monkeypatch: pytest.MonkeyPatch
         assert repo_id == "user/dataset-card"
         return types.SimpleNamespace(text="This is a dataset card")
 
-    monkeypatch.setattr(huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False
+    )
     dummy_dataset_card = types.SimpleNamespace(load=fake_load)
     monkeypatch.setattr(huggingface, "DatasetCard", dummy_dataset_card, raising=False)
 
@@ -161,7 +180,9 @@ def test_get_dataset_card_success_with_card_text(monkeypatch: pytest.MonkeyPatch
     assert result["downloads"] == 999
 
 
-def test_get_dataset_card_card_text_failure_uses_default(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_get_dataset_card_card_text_failure_uses_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     info = DummyDataset(_id="user/dataset-card-no-text")
 
     def fake_dataset_info(dataset_id: str):
@@ -170,7 +191,9 @@ def test_get_dataset_card_card_text_failure_uses_default(monkeypatch: pytest.Mon
     def fake_load(_repo_id: str):
         raise RuntimeError("cannot load card")
 
-    monkeypatch.setattr(huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False
+    )
     dummy_dataset_card = types.SimpleNamespace(load=fake_load)
     monkeypatch.setattr(huggingface, "DatasetCard", dummy_dataset_card, raising=False)
 
@@ -183,7 +206,9 @@ def test_get_dataset_card_error_returns_none(monkeypatch: pytest.MonkeyPatch) ->
     def fake_dataset_info(dataset_id: str):
         raise RuntimeError("HTTP 500")
 
-    monkeypatch.setattr(huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False)
+    monkeypatch.setattr(
+        huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False
+    )
 
     result = huggingface.get_dataset_card("does-not-exist")
     assert result is None
@@ -218,9 +243,13 @@ def test_search_huggingface_calls_helpers(monkeypatch: pytest.MonkeyPatch) -> No
         return []
 
     monkeypatch.setattr(huggingface, "search_models", fake_search_models, raising=False)
-    monkeypatch.setattr(huggingface, "search_datasets", fake_search_datasets, raising=False)
+    monkeypatch.setattr(
+        huggingface, "search_datasets", fake_search_datasets, raising=False
+    )
 
-    result_str = huggingface.search_huggingface_function("llama", include_models=True, include_datasets=True)
+    result_str = huggingface.search_huggingface_function(
+        "llama", include_models=True, include_datasets=True
+    )
 
     assert "user/llama" in result_str
     assert "Models Found" in result_str

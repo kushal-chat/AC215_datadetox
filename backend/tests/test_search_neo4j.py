@@ -30,7 +30,9 @@ def model_strategy() -> st.SearchStrategy[dict]:
             "model_id": st.text(min_size=1, max_size=100),
             "downloads": st.one_of(st.none(), st.integers(min_value=0)),
             "pipeline_tag": st.one_of(st.none(), st.text(min_size=1, max_size=50)),
-            "created_at": st.one_of(st.none(), st.datetimes().map(lambda d: d.isoformat())),
+            "created_at": st.one_of(
+                st.none(), st.datetimes().map(lambda d: d.isoformat())
+            ),
             "library_name": st.one_of(st.none(), st.text(min_size=1, max_size=50)),
             "url": st.one_of(st.none(), st.text(min_size=1, max_size=100)),
             "likes": st.one_of(st.none(), st.integers(min_value=0)),
@@ -129,7 +131,9 @@ def test_hfnodes_creation(models_data: list[dict]) -> None:
         max_size=10,
     )
 )
-def test_hfrelationships_creation(relationships_data: list[tuple[dict, str, dict]]) -> None:
+def test_hfrelationships_creation(
+    relationships_data: list[tuple[dict, str, dict]],
+) -> None:
     relationships = [
         HFRelationship(
             source=HFModel(**src),
@@ -147,7 +151,7 @@ def test_hfgraphdata_creation(model_data: dict, dataset_data: dict) -> None:
     models = [HFModel(**model_data)]
     datasets = [HFDataset(**dataset_data)]
     nodes = HFNodes(nodes=models + datasets)
-    
+
     relationships = [
         HFRelationship(
             source=models[0],
@@ -156,7 +160,7 @@ def test_hfgraphdata_creation(model_data: dict, dataset_data: dict) -> None:
         )
     ]
     rels = HFRelationships(relationships=relationships)
-    
+
     graph = HFGraphData(nodes=nodes, relationships=rels)
     assert len(graph.nodes.nodes) == 2
     assert len(graph.relationships.relationships) == 1
@@ -193,6 +197,7 @@ def test_make_entity_invalid(invalid_data: dict) -> None:
 def test_parse_node_model(model_data: dict) -> None:
     """Test _parse_node correctly parses model data"""
     from routers.search.utils.search_neo4j import HFModel
+
     result = _parse_node(model_data, HFModel)
     assert result is not None
     assert isinstance(result, HFModel)
@@ -203,6 +208,7 @@ def test_parse_node_model(model_data: dict) -> None:
 def test_parse_node_dataset(dataset_data: dict) -> None:
     """Test _parse_node correctly parses dataset data"""
     from routers.search.utils.search_neo4j import HFDataset
+
     result = _parse_node(dataset_data, HFDataset)
     assert result is not None
     assert isinstance(result, HFDataset)
@@ -213,5 +219,6 @@ def test_parse_node_dataset(dataset_data: dict) -> None:
 def test_parse_node_invalid(invalid_data: dict) -> None:
     """Test _parse_node returns None for invalid data"""
     from routers.search.utils.search_neo4j import HFModel
+
     result = _parse_node(invalid_data, HFModel)
     assert result is None

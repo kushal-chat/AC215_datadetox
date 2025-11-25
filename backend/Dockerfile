@@ -41,8 +41,5 @@ COPY --chown=app:app . ./
 
 RUN uv sync
 
-# Install arxiv-mcp-server globally for the app user
-RUN uv tool install arxiv-mcp-server
-
 # Run with uvicorn
 CMD ["uv", "run", "fastapi", "dev", "main.py", "--host", "0.0.0.0", "--port", "8000"]

@@ -3,15 +3,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers.client import router as client_router
 
 app = FastAPI(
-    title="DataDetox API",
-    description="API for DataDetox application",
-    version="1.0.0"
+    title="DataDetox API", description="API for DataDetox application", version="1.0.0"
 )
-origins = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "*"  
-]
+origins = ["http://localhost:3000", "http://127.0.0.1:3000", "*"]
 
 app.add_middleware(
     CORSMiddleware,
