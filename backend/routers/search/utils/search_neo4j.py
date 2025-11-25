@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import logging
-from dotenv import load_dotenv
 from typing import Optional, Union
 
 import neo4j
@@ -12,8 +11,6 @@ from agents import function_tool
 from pydantic import BaseModel, ConfigDict
 
 from .tool_state import set_tool_result
-
-load_dotenv()
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +93,9 @@ def _log_query_summary(summary: neo4j.QueryResultSummary, record_count: int) -> 
 
 @function_tool
 def search_models() -> HFNodes:
-    """Search for all models in the Neo4j database."""
+    """Search for all models in the Neo4j database (most downloaded)."""
     res, summary, _ = driver.execute_query(
-        "MATCH (n:Model) RETURN n",
+        "MATCH (n:Model) RETURN n ORDER BY n.downloads DESC",
         routing_=neo4j.RoutingControl.READ,
     )
 
@@ -114,9 +111,9 @@ def search_models() -> HFNodes:
 
 @function_tool
 def search_datasets() -> HFNodes:
-    """Search for all datasets in the Neo4j database."""
+    """Search for all datasets in the Neo4j database (most downloaded)."""
     res, summary, _ = driver.execute_query(
-        "MATCH (n:Dataset) RETURN n",
+        "MATCH (n:Dataset) RETURN n ORDER BY n.downloads DESC",
         routing_=neo4j.RoutingControl.READ,
     )
 

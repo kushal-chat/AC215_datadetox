@@ -5,7 +5,7 @@ from .utils import search_huggingface, search_neo4j
 instructions = """
     Receive an input of a model or a dataset.
     First, 
-    - search_huggingface() to get info from HuggingFace, and get the model_id.
+    - search_huggingface() to get info from HuggingFace, and get the model_id or dataset_id.
     Second,
     - search_neo4j(model_id) with the model ID to get info on connected, similar models / datasets.
     Third,

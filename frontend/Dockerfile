@@ -1,7 +1,11 @@
-FROM node:20-slim AS builder
+FROM node:20-slim
 WORKDIR /app
 
-# Copy package files from frontend directory
+# Accept build argument
+ARG VITE_API_URL=http://localhost:8000
+ENV VITE_API_URL=${VITE_API_URL}
+
+# Copy package files
 COPY package*.json ./
 
 # Install dependencies
@@ -10,18 +14,8 @@ RUN npm install
 # Copy source code
 COPY . ./
 
-# Build the app
-RUN npm run build
-
-# Production stage
-FROM node:20-slim AS runner
-WORKDIR /app
-
-# Copy built assets
-COPY --from=builder /app/dist ./dist
-
-# Install serve to run the static site
-RUN npm install -g serve
-
+# Expose port
 EXPOSE 3000
-CMD ["serve", "-s", "dist", "-l", "3000"]
+
+# Run in development mode with hot reload
+CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]

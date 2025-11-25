@@ -5,11 +5,12 @@ services:
       dockerfile: Dockerfile
     environment:
       - OPENAI_API_KEY
+      - HF_TOKEN=${HF_TOKEN}
       - NEO4J_URI=${NEO4J_URI:-bolt://neo4j:7687}
       - NEO4J_USER=${NEO4J_USER:-neo4j}
       - NEO4J_PASSWORD=${NEO4J_PASSWORD:-password}
     ports:
-      - "8080:8000"
+      - "8000:8000"
     volumes:
       - ./backend:/app
     tty: true
@@ -21,15 +22,22 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # Frontend runs in browser, so it needs to connect to localhost:8000 (the host machine)
+        - VITE_API_URL=http://localhost:8000
     ports:
       - "3000:3000"
     environment:
-      - REACT_APP_API_URL=http://backend:8080
+      - VITE_API_URL=http://localhost:8000
     depends_on:
       - backend
     restart: unless-stopped
     networks:
       - datadetox-network
+    # Mount source code for hot reload in development
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
 
   neo4j:
     image: neo4j:5.15-community

@@ -73,13 +73,13 @@ const Chatbot = () => {
 
     try {
       // Call the backend API
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080';
-      const response = await fetch(`${apiUrl}/client/search`, {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
+      const response = await fetch(`${apiUrl}/flow/search`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ query }),
+        body: JSON.stringify({ query_val: query }),
       });
 
       if (!response.ok) {
@@ -94,16 +94,12 @@ const Chatbot = () => {
 
       const aiMessage: Message = {
         id: (Date.now() + 2).toString(),
-        text: data.response || "I couldn't find information about that.",
+        text: data.result || "I couldn't find information about that.",
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         metadata: {
-          searchTerms: data.search_terms,
-          arxivId: data.arxiv_id,
+          searchTerms: query,
           stageTimes: {
-            stage1: data.stage1_time,
-            stage2: data.stage2_time,
-            stage3: data.stage3_time,
             total: parseFloat(totalTime),
           },
         },
