@@ -17,6 +17,8 @@
 */.next/
 */out/
 
+/backend/.hypothesis
+
 # production
 */build/
 */dist/

@@ -28,6 +28,7 @@ ci-cd = [
     "ruff>=0.14.6",
 ]
 dev = [
+    "black>=25.11.0",
     "hypothesis>=6.148.2",
     "pytest-cov>=7.0.0",
 ]

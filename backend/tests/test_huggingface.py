@@ -222,11 +222,11 @@ def test_format_search_results_models_and_datasets() -> None:
     output = huggingface.format_search_results(models, datasets)
 
     # Basic structure checks
-    assert "### 🤖 Models Found:" in output
+    assert "### Models Found:" in output
     assert "[user/model-1](https://huggingface.co/user/model-1)" in output
     assert "Downloads: 1,000" in output  # formatted with comma
 
-    assert "### 📊 Datasets Found:" in output
+    assert "### Datasets Found:" in output
     assert "[user/dataset-1](https://huggingface.co/datasets/user/dataset-1)" in output
     assert "Downloads: 2,000" in output
 

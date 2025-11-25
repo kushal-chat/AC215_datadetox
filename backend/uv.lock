@@ -94,6 +94,7 @@ ci-cd = [
     { name = "ruff" },
 ]
 dev = [
+    { name = "black" },
     { name = "hypothesis" },
     { name = "pytest-cov" },
 ]
@@ -126,6 +127,7 @@ ci-cd = [
     { name = "ruff", specifier = ">=0.14.6" },
 ]
 dev = [
+    { name = "black", specifier = ">=25.11.0" },
     { name = "hypothesis", specifier = ">=6.148.2" },
     { name = "pytest-cov", specifier = ">=7.0.0" },
 ]
