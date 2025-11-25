@@ -2,18 +2,24 @@
 
 from __future__ import annotations
 
+import os
 import logging
+from dotenv import load_dotenv
 from typing import Optional, Union
 
 import neo4j
 from agents import function_tool
 from pydantic import BaseModel, ConfigDict
 
+from .tool_state import set_tool_result
+
+load_dotenv()
+
 logger = logging.getLogger(__name__)
 
 # Neo4j connection configuration
-NEO4J_URI = "neo4j://localhost:7687"
-NEO4J_AUTH = ("neo4j", "password")
+NEO4J_URI = os.getenv("NEO4J_URI", "bolt://neo4j:7687")
+NEO4J_AUTH = (os.getenv("NEO4J_USER", "neo4j"), os.getenv("NEO4J_PASSWORD", "password"))
 RELATIONSHIP_FILTER = (
     "BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON"
 )
@@ -167,7 +173,7 @@ def search_query(model_id: str) -> HFGraphData:
         return _make_entity(node)
 
     node_entities = [_ensure_entity(node_dict) for node_dict in data.get("nodes", [])]
-    MAX_COUNT = 5
+    MAX_COUNT = 10
     limited_nodes = node_entities[:MAX_COUNT]
 
     relationships = [
@@ -180,7 +186,12 @@ def search_query(model_id: str) -> HFGraphData:
     ]
 
     _log_query_summary(summary, len(res))
-    return HFGraphData(
+    result = HFGraphData(
         nodes=HFNodes(nodes=limited_nodes),
         relationships=HFRelationships(relationships=relationships[:MAX_COUNT]),
     )
+    
+    # Store the result in request-scoped state for later retrieval
+    set_tool_result('search_neo4j', result)
+    
+    return result
