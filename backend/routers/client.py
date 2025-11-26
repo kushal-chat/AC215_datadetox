@@ -25,6 +25,9 @@ async def run_search(query: Query, request: Request) -> dict:
     # Initialize tool results storage in request state
     request.state.tool_results = {}
 
+    # Store the original user query for later use
+    request.state.original_query = query.query_val
+
     # Store request in context so tool functions can access it
     set_request_context(request)
 

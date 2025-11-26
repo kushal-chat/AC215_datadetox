@@ -10,7 +10,7 @@ import neo4j
 from agents import function_tool
 from pydantic import BaseModel, ConfigDict
 
-from .tool_state import set_tool_result
+from .tool_state import set_tool_result, get_request_context
 
 logger = logging.getLogger(__name__)
 
@@ -70,6 +70,7 @@ class HFGraphData(BaseModel):
 
     nodes: HFNodes
     relationships: HFRelationships
+    queried_model_id: Optional[str] = None  # The model ID that was queried
 
 
 def _parse_node(
@@ -138,7 +139,7 @@ def _make_entity(node_dict: dict) -> HFModel | HFDataset:
 
 @function_tool
 def search_query(model_id: str) -> HFGraphData:
-    """Get the complete lineage tree for a given model."""
+    """Get the complete lineage tree for a given model (upstream and downstream)."""
     query = """
         MATCH (root:Model {model_id: $model_id})
         CALL apoc.path.subgraphAll(root, {
@@ -183,9 +184,35 @@ def search_query(model_id: str) -> HFGraphData:
     ]
 
     _log_query_summary(summary, len(res))
+
+    # Try to find the actual model from the original user query
+    final_queried_model_id = model_id  # Default to the model the agent searched for
+    request = get_request_context()
+    if request and hasattr(request.state, "original_query"):
+        original_query = request.state.original_query.lower()
+        logger.info(f"Original user query: {original_query}")
+
+        # Try to find a model in the graph that matches the original query
+        for node in node_entities:
+            if isinstance(node, HFModel):
+                node_id_lower = node.model_id.lower()
+                # Check if the model_id contains parts of the original query
+                # or if the original query contains the model_id
+                if node_id_lower in original_query or any(
+                    part in node_id_lower
+                    for part in original_query.split()
+                    if len(part) > 3
+                ):
+                    final_queried_model_id = node.model_id
+                    logger.info(
+                        f"Found matching model from original query: {final_queried_model_id}"
+                    )
+                    break
+
     result = HFGraphData(
         nodes=HFNodes(nodes=limited_nodes),
         relationships=HFRelationships(relationships=relationships[:MAX_COUNT]),
+        queried_model_id=final_queried_model_id,  # Use the matched model or fallback
     )
 
     # Store the result in request-scoped state for later retrieval

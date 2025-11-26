@@ -1,6 +1,4 @@
 import { Link, useLocation } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { MessageSquare } from "lucide-react";
 
 const Navbar = () => {
   const location = useLocation();
@@ -38,12 +36,6 @@ const Navbar = () => {
               }`}
             >
               Chatbot
-            </Link>
-            <Link to="/chatbot">
-              <Button className="bg-gradient-accent hover:opacity-90 transition-opacity">
-                <MessageSquare className="w-4 h-4 mr-2" />
-                Try Now
-              </Button>
             </Link>
           </div>
         </div>
