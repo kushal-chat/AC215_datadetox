@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
+/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
 All colors MUST be HSL.
 */
 
@@ -43,13 +43,13 @@ All colors MUST be HSL.
     --gradient-hero: linear-gradient(135deg, hsl(233 47% 25%), hsl(270 60% 40%));
     --gradient-card: linear-gradient(180deg, hsl(0 0% 100%), hsl(220 25% 98%));
     --gradient-accent: linear-gradient(90deg, hsl(190 75% 45%), hsl(233 65% 55%));
-    
+
     /* Shadows */
     --shadow-sm: 0 2px 8px hsla(233 47% 25% / 0.08);
     --shadow-md: 0 8px 24px hsla(233 47% 25% / 0.12);
     --shadow-lg: 0 16px 48px hsla(233 47% 25% / 0.16);
     --shadow-glow: 0 0 40px hsla(190 75% 45% / 0.3);
-    
+
     /* Transitions */
     --transition-base: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-smooth: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
@@ -102,12 +102,12 @@ All colors MUST be HSL.
     --border: 230 15% 20%;
     --input: 230 15% 20%;
     --ring: 233 65% 55%;
-    
+
     /* Dark mode gradients */
     --gradient-hero: linear-gradient(135deg, hsl(233 65% 35%), hsl(270 60% 35%));
     --gradient-card: linear-gradient(180deg, hsl(230 20% 12%), hsl(230 20% 10%));
     --gradient-accent: linear-gradient(90deg, hsl(190 75% 45%), hsl(233 65% 55%));
-    
+
     --shadow-sm: 0 2px 8px hsla(0 0% 0% / 0.3);
     --shadow-md: 0 8px 24px hsla(0 0% 0% / 0.4);
     --shadow-lg: 0 16px 48px hsla(0 0% 0% / 0.5);

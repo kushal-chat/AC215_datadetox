@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from types import SimpleNamespace
 
 from hypothesis import given, strategies as st
 
@@ -15,7 +14,6 @@ from routers.search.utils.search_neo4j import (
     HFGraphData,
     _make_entity,
     _parse_node,
-    search_query,
 )
 
 

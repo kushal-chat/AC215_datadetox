@@ -37,11 +37,11 @@ const UseCases = () => {
             See how DataDetox helps identify and mitigate risks in AI model deployment
           </p>
         </div>
-        
+
         <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
           {useCases.map((useCase, index) => (
-            <Card 
-              key={index} 
+            <Card
+              key={index}
               className="bg-card border-border hover:shadow-lg transition-all duration-300 animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >

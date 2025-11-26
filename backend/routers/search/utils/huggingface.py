@@ -31,7 +31,10 @@ def search_models(
 
         # Search models
         models = hf_api.list_models(
-            search=query, limit=limit, sort=sort, direction=-1  # Descending order
+            search=query,
+            limit=limit,
+            sort=sort,
+            direction=-1,  # Descending order
         )
 
         results = []
@@ -78,7 +81,10 @@ def search_datasets(
 
         # Search datasets
         datasets = hf_api.list_datasets(
-            search=query, limit=limit, sort=sort, direction=-1  # Descending order
+            search=query,
+            limit=limit,
+            sort=sort,
+            direction=-1,  # Descending order
         )
 
         results = []

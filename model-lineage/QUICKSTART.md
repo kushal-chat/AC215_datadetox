@@ -16,7 +16,7 @@
    ```bash
    docker compose up -d neo4j
    ```
-   
+
    Wait for Neo4j to be healthy (check with `docker compose ps`)
 
 3. **Initialize DVC** (if not already done):
@@ -54,16 +54,16 @@ docker compose run model-lineage-scraper uv run python lineage_scraper.py --comm
 - **Web UI**: http://localhost:7474
   - Username: `neo4j`
   - Password: `password` (change in production!)
-  
+
 - **Example Cypher Query**:
   ```cypher
   // Get all models
   MATCH (m:Model) RETURN m LIMIT 10
-  
+
   // Get model lineage
   MATCH path = (m:Model {model_id: "bert-base-uncased"})-[*1..3]-(related)
   RETURN path
-  
+
   // Get statistics
   MATCH (m:Model) RETURN count(m) as model_count
   MATCH ()-[r]->() RETURN count(r) as relationship_count
@@ -74,12 +74,12 @@ docker compose run model-lineage-scraper uv run python lineage_scraper.py --comm
 - **Raw Data**: `data/model-lineage/raw/`
   - Models: `data/model-lineage/raw/models/models_*.json`
   - Relationships: `data/model-lineage/raw/relationships/relationships_*.json`
-  
+
 - **DVC Tracking**: All data files have corresponding `.dvc` pointer files tracked in Git
 
 ## Troubleshooting
 
-1. **Neo4j Connection Error**: 
+1. **Neo4j Connection Error**:
    - Ensure Neo4j is running: `docker compose ps neo4j`
    - Check health: `docker compose logs neo4j`
 
@@ -93,4 +93,3 @@ docker compose run model-lineage-scraper uv run python lineage_scraper.py --comm
 4. **Memory Issues**:
    - Use `--limit` flag to scrape fewer models
    - Increase Neo4j memory in `docker-compose.yml` if needed
-

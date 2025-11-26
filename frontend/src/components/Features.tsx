@@ -40,11 +40,11 @@ const Features = () => {
             Everything you need to understand and track AI model lineage in one interactive platform
           </p>
         </div>
-        
+
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
           {features.map((feature, index) => (
-            <Card 
-              key={index} 
+            <Card
+              key={index}
               className="bg-card border-border hover:shadow-lg transition-all duration-300 hover:-translate-y-1 animate-fade-in"
               style={{ animationDelay: `${index * 100}ms` }}
             >

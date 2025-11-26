@@ -10,10 +10,7 @@ from .search.utils.tool_state import get_tool_result, set_request_context
 
 router = APIRouter(prefix="/flow")
 
-logging.basicConfig(
-    level=logging.INFO,
-    handlers=[RichHandler()]
-)
+logging.basicConfig(level=logging.INFO, handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
 
 
@@ -27,7 +24,7 @@ async def run_search(query: Query, request: Request) -> dict:
 
     # Initialize tool results storage in request state
     request.state.tool_results = {}
-    
+
     # Store request in context so tool functions can access it
     set_request_context(request)
 
@@ -38,10 +35,10 @@ async def run_search(query: Query, request: Request) -> dict:
     search_logger.info(f"Query '{query.query_val}' is done running.")
 
     # Get the stored neo4j result from request state
-    neo4j_result = get_tool_result('search_neo4j', request)
+    neo4j_result = get_tool_result("search_neo4j", request)
 
     response = {"result": res.final_output_as(str)}
-    
+
     # Add neo4j_data if available
     if neo4j_result is not None:
         response["neo4j_data"] = neo4j_result.model_dump()

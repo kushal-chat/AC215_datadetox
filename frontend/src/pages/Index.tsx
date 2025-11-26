@@ -10,7 +10,7 @@ const Index = () => {
       <Hero />
       <Features />
       <UseCases />
-      
+
       {/* Footer */}
       <footer className="py-12 px-6 border-t border-border bg-muted/30">
         <div className="container mx-auto text-center">

@@ -187,8 +187,8 @@ def search_query(model_id: str) -> HFGraphData:
         nodes=HFNodes(nodes=limited_nodes),
         relationships=HFRelationships(relationships=relationships[:MAX_COUNT]),
     )
-    
+
     # Store the result in request-scoped state for later retrieval
-    set_tool_result('search_neo4j', result)
-    
+    set_tool_result("search_neo4j", result)
+
     return result

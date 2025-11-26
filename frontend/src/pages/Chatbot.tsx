@@ -132,7 +132,7 @@ const Chatbot = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      
+
       <div className="container mx-auto px-6 pt-24 pb-12">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-8">
@@ -155,7 +155,7 @@ const Chatbot = () => {
                     Chat with DataDetox AI
                   </CardTitle>
                 </CardHeader>
-                
+
                 <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
                   {messages.map((message) => (
                     <ChatMessage

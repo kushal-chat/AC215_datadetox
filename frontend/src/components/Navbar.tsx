@@ -4,7 +4,7 @@ import { MessageSquare } from "lucide-react";
 
 const Navbar = () => {
   const location = useLocation();
-  
+
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-card/80 backdrop-blur-lg border-b border-border">
       <div className="container mx-auto px-6 py-4">
@@ -17,23 +17,23 @@ const Navbar = () => {
               DataDetox
             </span>
           </Link>
-          
+
           <div className="flex items-center gap-6">
-            <Link 
-              to="/" 
+            <Link
+              to="/"
               className={`text-sm font-medium transition-colors ${
-                location.pathname === "/" 
-                  ? "text-primary" 
+                location.pathname === "/"
+                  ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
               Home
             </Link>
-            <Link 
-              to="/chatbot" 
+            <Link
+              to="/chatbot"
               className={`text-sm font-medium transition-colors ${
-                location.pathname === "/chatbot" 
-                  ? "text-primary" 
+                location.pathname === "/chatbot"
+                  ? "text-primary"
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >

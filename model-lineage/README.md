@@ -63,4 +63,3 @@ docker compose run model-lineage-scraper uv run python lineage_scraper.py --comm
 - HTTP: http://localhost:7474
 - Bolt: bolt://localhost:7687
 - Default credentials: neo4j/password (change in production!)
-

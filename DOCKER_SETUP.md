@@ -18,10 +18,10 @@ This guide explains how to run the entire DataDetox application using Docker Com
    ```bash
    # Required: Your OpenAI API key
    OPENAI_API_KEY=sk-proj-...
-   
+
    # Required: Your HuggingFace token
    HF_TOKEN=hf_...
-   
+
    # Required: Your Neo4j credentials
    NEO4J_URI=neo4j+s://your-instance.databases.neo4j.io
    NEO4J_USER=neo4j

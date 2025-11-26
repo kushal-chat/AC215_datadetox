@@ -30,10 +30,10 @@ const sampleTree: ModelNode = {
 
 const TreeNode = ({ node, level = 0 }: { node: ModelNode; level?: number }) => {
   const indent = level * 24;
-  
+
   return (
     <div className="animate-fade-in">
-      <div 
+      <div
         className="flex items-center gap-2 py-2 hover:bg-muted/50 rounded-lg px-2 transition-colors cursor-pointer"
         style={{ marginLeft: `${indent}px` }}
       >

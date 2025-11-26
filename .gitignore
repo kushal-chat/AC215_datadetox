@@ -34,7 +34,7 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files 
+# env files
 .env
 
 # vercel
@@ -79,7 +79,7 @@ data/**/*.md
 # docker-volumes
 docker-volumes/
 
-# ruff 
+# ruff
 .ruff_cache/
 
 # local key file

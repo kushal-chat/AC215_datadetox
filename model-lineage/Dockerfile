@@ -34,4 +34,3 @@ RUN uv tool install dvc
 
 # Default command
 CMD ["uv", "run", "python", "lineage_scraper.py", "--help"]
-
