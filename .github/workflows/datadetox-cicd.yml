@@ -2,7 +2,7 @@ name: datadetox-cicd
 
 on:
   push:
-    branches: [main, develop, kushal-multiagentflow]
+    branches: [main, develop, terry/milestone4, kushal-multiagentflow]
   pull_request:
     branches: [main, develop]
 
@@ -26,7 +26,7 @@ jobs:
         with:
           version: "latest"
 
-      - name: Install dependencies
+      - name: Install backend dependencies
         working-directory: ./backend
         run: |
           uv sync --dev
@@ -40,11 +40,33 @@ jobs:
             --cov-report=xml:coverage.xml \
             --cov-fail-under=50
 
-      - name: Upload coverage report
+      - name: Upload backend coverage report
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-report
+          name: backend-coverage-report
           path: backend/coverage.xml
+
+      - name: Install model-lineage dependencies
+        working-directory: ./model-lineage
+        run: |
+          uv sync --dev
+
+      - name: Run model-lineage tests with coverage
+        working-directory: ./model-lineage
+        run: |
+          uv run pytest tests/ -v \
+            --cov=graph \
+            --cov=scrapers \
+            --cov=storage \
+            --cov-report=term-missing \
+            --cov-report=xml:coverage.xml \
+            --cov-fail-under=50
+
+      - name: Upload model-lineage coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-lineage-coverage-report
+          path: model-lineage/coverage.xml
 
       - name: Check code formatting
         working-directory: ./backend

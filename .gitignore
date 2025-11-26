@@ -89,3 +89,5 @@ backend/*.json
 secrets/
 
 *.csv
+
+.hypothesis/
