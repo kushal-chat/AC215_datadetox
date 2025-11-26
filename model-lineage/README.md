@@ -9,7 +9,7 @@ This pipeline:
 2. Extracts model relationships (base models, fine-tuned versions, etc.)
 3. Builds a lineage graph
 4. Stores the graph in Neo4j
-5. Versions all data using DVC
+5. Versions all data using DVC (See instructions for data versioning at `docs/data_versioning.md`)
 
 ## Setup
 

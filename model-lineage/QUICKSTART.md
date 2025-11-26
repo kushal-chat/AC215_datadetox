@@ -10,9 +10,12 @@
 1. **Set Environment Variables** (in your `.env` file or export):
    ```bash
    export HF_TOKEN=your_huggingface_token_here
+   export NEO4J_URI=neo4j+s://your-neo4j-uri
+   export NEO4J_USER=neo4j
+   export NEO4J_PASSWORD=your-neo4j-password
    ```
 
-2. **Start Neo4j**:
+2. **Start Neo4j (Local)**:
    ```bash
    docker compose up -d neo4j
    ```

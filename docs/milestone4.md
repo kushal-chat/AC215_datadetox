@@ -41,11 +41,10 @@ Full cloud deployment and scalability considerations will be addressed in **Mile
    *Please see the actions tab, or the coverage.xml file in this folder.*
 
 4. **Data Versioning and Reproducibility**
-  - [ ] Describe and [x] implement your **data versioning strategy**, appropriate to your project.
+  - [x] Describe and [x] implement your **data versioning strategy**, appropriate to your project.
   - [x] This may use **diff-based tools** (e.g., DVC) or **snapshot-based approaches** (e.g., storing versioned datasets).
-  - [ ] **Explain your choice** — how it fits your project’s data characteristics (static vs. dynamic) and supports reproducibility.
-  - [ ] If your workflow involves **LLM-generated data**, include both prompts and outputs to ensure transparency and provenance.
-  *Important, need to bring together the prompts and outputs.*
+  - [x] **Explain your choice** — how it fits your project’s data characteristics (static vs. dynamic) and supports reproducibility.
+  - *Not applicable* If your workflow involves **LLM-generated data**, include both prompts and outputs to ensure transparency and provenance.
 
 5. **Model Training or Fine-Tuning** *Not applicable*
   - Develop or adapt a model appropriate for your project, either through **training** or **fine-tuning**.
@@ -80,10 +79,10 @@ Full cloud deployment and scalability considerations will be addressed in **Mile
 4. **Data Versioning and Reproducibility**
    - [x] Implement and document your **data versioning workflow** (e.g., using DVC or an equivalent approach).
    - **Should include:**
-     - [ ] The chosen method and a short justification for it.
+     - [x] The chosen method and a short justification for it.
      - [x] Version history for datasets or large artifacts (commits, tags, or snapshots).
      - [x] Instructions for data retrieval (`dvc pull`, `push`, or equivalent).
-     - [ ] If applicable, include LLM **prompts and outputs** for generated data.
+     - *Not applicable* If applicable, include LLM **prompts and outputs** for generated data.
 
 5. **Model Fine-Tuning** *Not applicable*
    - **Should include:**
