@@ -67,45 +67,51 @@ class DVCDataStore:
             except subprocess.CalledProcessError as e:
                 logger.warning(f"DVC init failed (may already be initialized): {e}")
 
+    def _save_data(
+        self,
+        data: List[Dict[str, Any]],
+        data_type: str,
+        subdirectory: str,
+        timestamp: Optional[str] = None,
+    ) -> str:
+        """
+        Generic method to save data with DVC tracking.
+
+        Args:
+            data: Data to save
+            data_type: Type of data (e.g., "models", "datasets")
+            subdirectory: Subdirectory name (e.g., "models", "datasets")
+            timestamp: Optional timestamp string
+
+        Returns:
+            Path to saved file
+        """
+        if timestamp is None:
+            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+
+        filename = f"{data_type}_{timestamp}.json"
+        filepath = self.raw_path / subdirectory / filename
+        filepath.parent.mkdir(parents=True, exist_ok=True)
+
+        with open(filepath, "w") as f:
+            json.dump(data, f, indent=2)
+
+        self._dvc_add(filepath)
+
+        logger.info(f"Saved {len(data)} {data_type} to {filepath}")
+        return str(filepath)
+
     def save_scraped_models(
         self, models: List[Dict[str, Any]], timestamp: Optional[str] = None
     ) -> str:
         """Save scraped model data with DVC tracking."""
-        if timestamp is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-        filename = f"models_{timestamp}.json"
-        filepath = self.raw_path / "models" / filename
-        filepath.parent.mkdir(parents=True, exist_ok=True)
-
-        # Save data
-        with open(filepath, "w") as f:
-            json.dump(models, f, indent=2)
-
-        # Add to DVC
-        self._dvc_add(filepath)
-
-        logger.info(f"Saved {len(models)} models to {filepath}")
-        return str(filepath)
+        return self._save_data(models, "models", "models", timestamp)
 
     def save_scraped_datasets(
         self, datasets: List[Dict[str, Any]], timestamp: Optional[str] = None
     ) -> str:
         """Save scraped dataset data with DVC tracking."""
-        if timestamp is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
-        filename = f"datasets_{timestamp}.json"
-        filepath = self.raw_path / "datasets" / filename
-        filepath.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(filepath, "w") as f:
-            json.dump(datasets, f, indent=2)
-
-        self._dvc_add(filepath)
-
-        logger.info(f"Saved {len(datasets)} datasets to {filepath}")
-        return str(filepath)
+        return self._save_data(datasets, "datasets", "datasets", timestamp)
 
     def save_relationships(
         self, relationships: List[Dict[str, Any]], timestamp: Optional[str] = None
@@ -114,23 +120,11 @@ class DVCDataStore:
         Save relationships with DVC tracking.
         Automatically filters to only include: finetuned, adapters, merges, quantizations, trained_on
         """
-        if timestamp is None:
-            timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-
         # Filter relationships to only include allowed types
         relationships = self.filter_relationships(relationships)
-
-        filename = f"relationships_{timestamp}.json"
-        filepath = self.raw_path / "relationships" / filename
-        filepath.parent.mkdir(parents=True, exist_ok=True)
-
-        with open(filepath, "w") as f:
-            json.dump(relationships, f, indent=2)
-
-        self._dvc_add(filepath)
-
-        logger.info(f"Saved {len(relationships)} relationships to {filepath}")
-        return str(filepath)
+        return self._save_data(
+            relationships, "relationships", "relationships", timestamp
+        )
 
     def filter_relationships(
         self, relationships: List[Dict[str, Any]], allowed_types: List[str] = None
@@ -174,44 +168,49 @@ class DVCDataStore:
         if timestamp is None:
             timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
 
+        metadata["timestamp"] = timestamp
         filename = f"scrape_metadata_{timestamp}.json"
         filepath = self.raw_path / "metadata" / filename
         filepath.parent.mkdir(parents=True, exist_ok=True)
 
-        metadata["timestamp"] = timestamp
         with open(filepath, "w") as f:
             json.dump(metadata, f, indent=2)
 
         self._dvc_add(filepath)
         return str(filepath)
 
-    def load_latest_models(self) -> Optional[List[Dict[str, Any]]]:
-        """Load the most recent models file."""
-        models_dir = self.raw_path / "models"
-        if not models_dir.exists():
+    def _load_latest_file(
+        self, subdirectory: str, pattern: str
+    ) -> Optional[List[Dict[str, Any]]]:
+        """
+        Generic method to load the most recent file matching a pattern.
+
+        Args:
+            subdirectory: Subdirectory to search in
+            pattern: File pattern to match (e.g., "models_*.json")
+
+        Returns:
+            Loaded data or None if no file found
+        """
+        directory = self.raw_path / subdirectory
+        if not directory.exists():
             return None
 
-        model_files = sorted(models_dir.glob("models_*.json"), reverse=True)
-        if not model_files:
+        files = sorted(directory.glob(pattern), reverse=True)
+        if not files:
             return None
 
-        latest_file = model_files[0]
+        latest_file = files[0]
         with open(latest_file, "r") as f:
             return json.load(f)
+
+    def load_latest_models(self) -> Optional[List[Dict[str, Any]]]:
+        """Load the most recent models file."""
+        return self._load_latest_file("models", "models_*.json")
 
     def load_latest_relationships(self) -> Optional[List[Dict[str, Any]]]:
         """Load the most recent relationships file."""
-        rel_dir = self.raw_path / "relationships"
-        if not rel_dir.exists():
-            return None
-
-        rel_files = sorted(rel_dir.glob("relationships_*.json"), reverse=True)
-        if not rel_files:
-            return None
-
-        latest_file = rel_files[0]
-        with open(latest_file, "r") as f:
-            return json.load(f)
+        return self._load_latest_file("relationships", "relationships_*.json")
 
     def _dvc_add(self, filepath: Path):
         """Add file to DVC tracking."""

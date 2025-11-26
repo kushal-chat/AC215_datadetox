@@ -24,13 +24,18 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
+def _log_section(title: str):
+    """Log a formatted section header."""
+    logger.info("=" * 60)
+    logger.info(title)
+    logger.info("=" * 60)
+
+
 def scrape_models(
     data_store: DVCDataStore, limit: int = None, keep_latest: Optional[int] = None
 ) -> tuple[str, str, str, str]:
     """Stage 1: Scrape models and datasets from HuggingFace."""
-    logger.info("=" * 60)
-    logger.info("Stage 1: Scraping HuggingFace models and datasets")
-    logger.info("=" * 60)
+    _log_section("Stage 1: Scraping HuggingFace models and datasets")
 
     scraper = HuggingFaceScraper()
     models, datasets, relationships = scraper.scrape_all_models(limit=limit)
@@ -85,9 +90,7 @@ def scrape_models(
 
 def build_graph(data_store: DVCDataStore) -> tuple:
     """Stage 2: Build lineage graph from scraped data."""
-    logger.info("=" * 60)
-    logger.info("Stage 2: Building lineage graph")
-    logger.info("=" * 60)
+    _log_section("Stage 2: Building lineage graph")
 
     # Load latest data
     models = data_store.load_latest_models()
@@ -115,9 +118,7 @@ def build_graph(data_store: DVCDataStore) -> tuple:
 
 def load_to_neo4j(graph_data, clear_existing: bool = False):
     """Stage 3: Load graph to Neo4j."""
-    logger.info("=" * 60)
-    logger.info("Stage 3: Loading graph to Neo4j")
-    logger.info("=" * 60)
+    _log_section("Stage 3: Loading graph to Neo4j")
 
     neo4j = Neo4jClient()
 
@@ -141,9 +142,7 @@ def load_to_neo4j(graph_data, clear_existing: bool = False):
 
 def commit_data(data_store: DVCDataStore, message: str = None):
     """Stage 4: Commit data to DVC and Git."""
-    logger.info("=" * 60)
-    logger.info("Stage 4: Committing to version control")
-    logger.info("=" * 60)
+    _log_section("Stage 4: Committing to version control")
 
     if message is None:
         message = f"Lineage data update: {datetime.now().isoformat()}"
@@ -239,9 +238,7 @@ Examples:
         if args.commit:
             commit_data(data_store, message=args.message)
 
-        logger.info("=" * 60)
-        logger.info("Pipeline completed successfully!")
-        logger.info("=" * 60)
+        _log_section("Pipeline completed successfully!")
 
     except Exception as e:
         logger.error(f"Pipeline failed: {e}", exc_info=True)

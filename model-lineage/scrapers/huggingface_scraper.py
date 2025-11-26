@@ -120,6 +120,23 @@ class HuggingFaceScraper:
             "url": f"https://huggingface.co/{model_info.id}",
         }
 
+    def _create_relationship(
+        self,
+        source: str,
+        target: str,
+        relationship_type: str,
+        source_type: str = "model",
+        target_type: str = "model",
+    ) -> Dict[str, Any]:
+        """Create a standardized relationship dictionary."""
+        return {
+            "source": source,
+            "target": target,
+            "relationship_type": relationship_type,
+            "source_type": source_type,
+            "target_type": target_type,
+        }
+
     def _extract_relationships(
         self, model_info: ModelInfo, model_data: Dict[str, Any]
     ) -> List[Dict[str, Any]]:
@@ -143,16 +160,10 @@ class HuggingFaceScraper:
 
                 if relationship_type:
                     relationships.append(
-                        {
-                            "source": model_id,
-                            "target": base_model,
-                            "relationship_type": relationship_type,
-                            "source_type": "model",
-                            "target_type": "model",
-                        }
+                        self._create_relationship(
+                            model_id, base_model, relationship_type
+                        )
                     )
-            # If no base model found, this is likely a base model itself
-
         except Exception as e:
             logger.debug(f"Could not extract relationships for {model_info.id}: {e}")
 
@@ -182,20 +193,12 @@ class HuggingFaceScraper:
             if dataset_id:
                 # Normalize dataset ID format
                 # Tags might be like "dataset:dataset-name" or "dataset:author/dataset-name"
-                if "/" not in dataset_id:
-                    # If no author, try to find it from common dataset patterns
-                    # Many datasets are under their own namespace or common orgs
-                    # For now, keep as-is and let the dataset scraping handle it
-                    pass
+                # If no author, keep as-is and let the dataset scraping handle it
 
                 relationships.append(
-                    {
-                        "source": model_id,
-                        "target": dataset_id,
-                        "relationship_type": "trained_on",
-                        "source_type": "model",
-                        "target_type": "dataset",
-                    }
+                    self._create_relationship(
+                        model_id, dataset_id, "trained_on", target_type="dataset"
+                    )
                 )
 
                 # Add dataset to list (minimal info, will be enriched during scraping)
@@ -332,13 +335,12 @@ class HuggingFaceScraper:
                     if match:
                         model_id = match.group(1)
                         relationships.append(
-                            {
-                                "source": model_id,
-                                "target": dataset_id,
-                                "relationship_type": "trained_on",
-                                "source_type": "model",
-                                "target_type": "dataset",
-                            }
+                            self._create_relationship(
+                                model_id,
+                                dataset_id,
+                                "trained_on",
+                                target_type="dataset",
+                            )
                         )
 
             # Also check for JSON data in script tags (common pattern on HF)
@@ -346,22 +348,18 @@ class HuggingFaceScraper:
             for script in script_tags:
                 try:
                     data = json.loads(script.string)
-                    # Look for model references in the data structure
-                    # This is a heuristic - HF's structure may vary
                     if isinstance(data, dict):
                         models = data.get("models", [])
                         if isinstance(models, list):
                             for model in models:
                                 if isinstance(model, dict) and "id" in model:
-                                    model_id = model["id"]
                                     relationships.append(
-                                        {
-                                            "source": model_id,
-                                            "target": dataset_id,
-                                            "relationship_type": "trained_on",
-                                            "source_type": "model",
-                                            "target_type": "dataset",
-                                        }
+                                        self._create_relationship(
+                                            model["id"],
+                                            dataset_id,
+                                            "trained_on",
+                                            target_type="dataset",
+                                        )
                                     )
                 except (json.JSONDecodeError, KeyError):
                     continue
@@ -388,10 +386,15 @@ class HuggingFaceScraper:
             )
 
             if base_model:
-                # Normalize base model ID
-                if "/" not in base_model and model_info.author:
-                    base_model = f"{model_info.author}/{base_model}"
-                return base_model
+                # Handle list case - extract first element if it's a list
+                if isinstance(base_model, list):
+                    base_model = base_model[0] if base_model else None
+
+                if base_model and isinstance(base_model, str):
+                    # Normalize base model ID
+                    if "/" not in base_model and model_info.author:
+                        base_model = f"{model_info.author}/{base_model}"
+                    return base_model
         except Exception as e:
             logger.debug(f"Could not get base model from card: {e}")
 
@@ -419,8 +422,6 @@ class HuggingFaceScraper:
                 siblings_data = response.json()
 
                 # Check each category for the current model
-                # The API might return different structures, so we check multiple possible formats
-
                 # Format: Direct lists
                 for category in ["finetuned", "adapters", "merges", "quantizations"]:
                     category_models = siblings_data.get(category, [])
@@ -462,9 +463,6 @@ class HuggingFaceScraper:
             if response.status_code == 200:
                 # Look for model tree JSON data embedded in the page
                 # HuggingFace often embeds JSON data in script tags
-                import re
-                import json
-
                 # Try to find embedded JSON with model tree data
                 json_match = re.search(
                     r'<script[^>]*id="model-tree-data"[^>]*>(.*?)</script>',
@@ -541,53 +539,6 @@ class HuggingFaceScraper:
             return "finetuned"
 
         return None
-
-    def _extract_from_model_card(
-        self, model_info: ModelInfo, model_data: Dict[str, Any]
-    ) -> List[Dict[str, Any]]:
-        """
-        Fallback method: Extract base model from model card YAML.
-        Used when model tree API is not available.
-        """
-        relationships = []
-        model_id = model_data["model_id"]
-
-        try:
-            from huggingface_hub import ModelCard
-
-            card = ModelCard.load(model_info.id)
-            card_data = card.data if hasattr(card, "data") else {}
-
-            base_model = (
-                card_data.get("base_model")
-                or card_data.get("base_model_name")
-                or card_data.get("base_model_config")
-            )
-
-            if base_model:
-                # Normalize base model ID
-                if "/" not in base_model and model_info.author:
-                    base_model = f"{model_info.author}/{base_model}"
-
-                # Infer relationship type from name
-                relationship_type = self._infer_relationship_type_from_name(
-                    model_id, base_model
-                )
-
-                if relationship_type:
-                    relationships.append(
-                        {
-                            "source": model_id,
-                            "target": base_model,
-                            "relationship_type": relationship_type,
-                            "source_type": "model",
-                            "target_type": "model",
-                        }
-                    )
-        except Exception as e:
-            logger.debug(f"Could not extract from model card for {model_info.id}: {e}")
-
-        return relationships
 
     def scrape_model_by_id(
         self, model_id: str

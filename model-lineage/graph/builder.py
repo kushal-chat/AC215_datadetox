@@ -11,6 +11,38 @@ logger = logging.getLogger(__name__)
 class LineageGraphBuilder:
     """Builds a lineage graph from scraped model data."""
 
+    def _convert_to_nodes(
+        self,
+        data_list: List[Dict[str, Any]],
+        node_class: type,
+        id_field: Optional[str],
+        entity_type: str,
+    ) -> List:
+        """
+        Generic method to convert dictionaries to node objects.
+
+        Args:
+            data_list: List of dictionaries to convert
+            node_class: Pydantic model class to instantiate
+            id_field: Field name for ID (for error messages)
+            entity_type: Type name for error messages
+
+        Returns:
+            List of node objects
+        """
+        nodes = []
+        for data in data_list:
+            try:
+                node = node_class(**data)
+                nodes.append(node)
+            except Exception as e:
+                entity_id = data.get(id_field) if id_field else "unknown"
+                logger.warning(
+                    f"Failed to create {entity_type} node for {entity_id}: {e}"
+                )
+                continue
+        return nodes
+
     def build_from_data(
         self,
         models: List[Dict[str, Any]],
@@ -35,29 +67,14 @@ class LineageGraphBuilder:
         )
 
         # Convert models to ModelNode objects
-        model_nodes = []
-        for model_data in models:
-            try:
-                model_node = ModelNode(**model_data)
-                model_nodes.append(model_node)
-            except Exception as e:
-                logger.warning(
-                    f"Failed to create model node for {model_data.get('model_id')}: {e}"
-                )
-                continue
+        model_nodes = self._convert_to_nodes(models, ModelNode, "model_id", "model")
 
         # Convert datasets to DatasetNode objects
         dataset_nodes = []
         if datasets:
-            for dataset_data in datasets:
-                try:
-                    dataset_node = DatasetNode(**dataset_data)
-                    dataset_nodes.append(dataset_node)
-                except Exception as e:
-                    logger.warning(
-                        f"Failed to create dataset node for {dataset_data.get('dataset_id')}: {e}"
-                    )
-                    continue
+            dataset_nodes = self._convert_to_nodes(
+                datasets, DatasetNode, "dataset_id", "dataset"
+            )
 
         # If no datasets provided, infer from relationships
         if not datasets:
@@ -67,18 +84,12 @@ class LineageGraphBuilder:
                     dataset_ids.add(rel["target"])
 
             for dataset_id in dataset_ids:
-                dataset_node = DatasetNode(dataset_id=dataset_id, tags=[])
-                dataset_nodes.append(dataset_node)
+                dataset_nodes.append(DatasetNode(dataset_id=dataset_id, tags=[]))
 
         # Convert relationships to Relationship objects
-        relationship_objects = []
-        for rel_data in relationships:
-            try:
-                relationship = Relationship(**rel_data)
-                relationship_objects.append(relationship)
-            except Exception as e:
-                logger.warning(f"Failed to create relationship: {e}")
-                continue
+        relationship_objects = self._convert_to_nodes(
+            relationships, Relationship, None, "relationship"
+        )
 
         logger.info(
             f"Built graph with {len(model_nodes)} models, "
