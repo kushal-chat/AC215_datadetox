@@ -7,7 +7,6 @@ interface ChatMessageProps {
   message: string;
   isUser: boolean;
   timestamp?: string;
-  isThinking?: boolean;
   metadata?: {
     searchTerms?: string;
     arxivId?: string;
@@ -20,23 +19,12 @@ interface ChatMessageProps {
   };
 }
 
-const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatMessageProps) => {
-  // Safeguard against undefined/null messages
-  if (!message) {
-    return null;
-  }
-
+const ChatMessage = ({ message, isUser, timestamp, metadata }: ChatMessageProps) => {
   return (
     <div className={cn("flex gap-3 mb-4 animate-fade-in", isUser ? "justify-end" : "justify-start")}>
       {!isUser && (
-        <div className={cn(
-          "w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center flex-shrink-0",
-          isThinking && "animate-bounce"
-        )}>
-          <Bot className={cn(
-            "w-5 h-5 text-primary-foreground",
-            isThinking && "animate-spin"
-          )} />
+        <div className="w-8 h-8 rounded-full bg-gradient-accent flex items-center justify-center flex-shrink-0">
+          <Bot className="w-5 h-5 text-primary-foreground" />
         </div>
       )}
 
@@ -55,12 +43,12 @@ const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatM
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               components={{
-                a: ({ ...props }) => <a {...props} className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" />,
-                h3: ({ ...props }) => <h3 {...props} className="text-base font-bold mt-3 mb-2" />,
-                ul: ({ ...props }) => <ul {...props} className="list-disc pl-4 space-y-1" />,
-                li: ({ ...props }) => <li {...props} className="text-sm" />,
-                p: ({ ...props }) => <p {...props} className="text-sm mb-2" />,
-                strong: ({ ...props }) => <strong {...props} className="font-semibold" />,
+                a: ({ node, ...props }) => <a {...props} className="text-blue-500 hover:underline" target="_blank" rel="noopener noreferrer" />,
+                h3: ({ node, ...props }) => <h3 {...props} className="text-base font-bold mt-3 mb-2" />,
+                ul: ({ node, ...props }) => <ul {...props} className="list-disc pl-4 space-y-1" />,
+                li: ({ node, ...props }) => <li {...props} className="text-sm" />,
+                p: ({ node, ...props }) => <p {...props} className="text-sm mb-2" />,
+                strong: ({ node, ...props }) => <strong {...props} className="font-semibold" />,
               }}
             >
               {message}
