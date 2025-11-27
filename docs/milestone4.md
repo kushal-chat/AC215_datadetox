@@ -23,10 +23,10 @@ Full cloud deployment and scalability considerations will be addressed in **Mile
 
 2. **APIs & Frontend**
 
-   - [ ] Implement APIs that connect the backend services (e.g., model, database, data pipeline) to the frontend.
+   - [x] Implement APIs that connect the backend services (e.g., model, database, data pipeline) to the frontend.
    *Easy using CORS middleware and frontend `fetch`.*
 
-   - [ ] Build a simple interface that correctly consumes these APIs and displays results or outputs from your system.
+   - [x] Build a simple interface that correctly consumes these APIs and displays results or outputs from your system.
    *Easy using CORS middleware and frontend `fetch`.*
 
 3. **Continuous Integration and Testing**
@@ -100,7 +100,7 @@ Your repository at that commit must include:
 
 1. **Documentation** (committed in your repo, e.g., in a `/docs/` folder):
    - [ ] Application Design Document (including solution and technical architecture)
-   - [ ] Data Versioning documentation (methodology, justification, and usage instructions)
+   - [x] Data Versioning documentation (methodology, justification, and usage instructions)
    - *Not applicable* Model Training/Fine-Tuning summary (training process, results, and deployment implications)
 
 2. **Code and Configuration**:
