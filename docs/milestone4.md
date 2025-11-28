@@ -54,7 +54,7 @@ Full cloud deployment and scalability considerations will be addressed in **Mile
 ---
 
 ### Deliverables
-1. [ ] **Application Design Document**
+1. [x] **Application Design Document**
    - A concise document describing the application’s overall architecture, user interface, and code organization.
    - **Should include:**
      - **Solution Architecture:** High-level overview of system components and their interactions (e.g., data flow, APIs, frontend, model).
@@ -99,7 +99,7 @@ Submit on Canvas:
 Your repository at that commit must include:
 
 1. **Documentation** (committed in your repo, e.g., in a `/docs/` folder):
-   - [ ] Application Design Document (including solution and technical architecture)
+   - [x] Application Design Document (including solution and technical architecture)
    - [x] Data Versioning documentation (methodology, justification, and usage instructions)
    - *Not applicable* Model Training/Fine-Tuning summary (training process, results, and deployment implications)
 
