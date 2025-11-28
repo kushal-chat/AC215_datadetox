@@ -10,6 +10,57 @@
 
 DataDetox is an interactive AI agent orchestration system that leverages MCP, graph-based data, and cloud infrastructure to trace ML data and model provenance, enabling practitioners to explore AI model lineages where otherwise there would exist a critical lack of transparency in model training data and upstream dependencies. Using Hugging Face model information and arXiv papers, the system traces how datasets and models connect across the AI ecosystem, helping developers identify hidden risks like copyrighted data or problematic datasets (e.g., LAION-5B, MS-Celeb-1M) that propagate downstream. Users may ask questions like “Tell me about any datasets or upstream models associated with qwen3-4b” to assess model risk, receiving visual dependency graphs and clear answers instead of manually piecing together scattered documentation.
 
+
+## Milestone 4 Deliverables
+
+
+### Documentation (in `/docs/`)
+
+1. **[Application Design Document](docs/app_design_doc.md)**
+
+2. **[Data Versioning Documentation](docs/data_versioning.md)**
+
+3. Model Training/Fine-Tuning Summary *(not applicable)*
+
+### Code and Configuration
+
+All source code is organized in the repository:
+
+- **Frontend**: [`/frontend/`](frontend/)
+  - React + TypeScript application
+  - Components in `frontend/src/components/`
+  - Pages in `frontend/src/pages/`
+
+- **Backend**: [`/backend/`](backend/)
+  - FastAPI application
+  - Agent implementation in `backend/routers/search/`
+  - Tests in `backend/tests/`
+
+- **Data Pipeline**: [`/model-lineage/`](model-lineage/)
+  - HuggingFace scraper
+  - Graph builder and Neo4j client
+  - Tests in `model-lineage/tests/`
+
+- **CI/CD Configuration**: [`.github/workflows/`](.github/workflows/)
+  - `backend-ci.yml` - Backend testing and linting
+  - `model-lineage-ci.yml` - Data pipeline testing
+  - Automated testing on push/PR
+
+- **Docker Configuration**:
+  - [`docker-compose.yml`](docker-compose.yml) - Multi-service orchestration
+  - Individual Dockerfiles in each service directory
+
+### CI Evidence
+
+**Passing CI Run Screenshots**:
+- Located in [`docs/cicd/`](docs/cicd/)
+
+**View Live CI/CD**:
+- Check the [GitHub Actions tab](../../actions) for recent workflow runs
+- Coverage reports available in workflow artifacts
+
+
+
 ## Visualizations
 - Landing Page:
 
@@ -189,17 +240,3 @@ The application consists of the following services:
 - Scrapes HuggingFace model relationships
 - Populates Neo4j database
 - Run via: `docker compose run model-lineage-scraper uv run python lineage_scraper.py --full`
-
-
-### CI/CD and Testing
-
-- Check that CI/CD tests pass in the GitHub Actions tab
-- View coverage reports in `.github/workflows/` or the `coverage.xml` files
-- Run tests locally:
-  ```bash
-  # Backend tests
-  cd backend && uv run pytest
-
-  # Model-lineage tests
-  cd model-lineage && uv run pytest
-  ```
