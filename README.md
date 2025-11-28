@@ -240,3 +240,16 @@ The application consists of the following services:
 - Scrapes HuggingFace model relationships
 - Populates Neo4j database
 - Run via: `docker compose run model-lineage-scraper uv run python lineage_scraper.py --full`
+
+### CI/CD and Testing
+
+- Check that CI/CD tests pass in the GitHub Actions tab
+- View coverage reports in `.github/workflows/` or the `coverage.xml` files
+- Run tests locally:
+  ```bash
+  # Backend tests
+  cd backend && uv run pytest
+
+  # Model-lineage tests
+  cd model-lineage && uv run pytest
+  ```
