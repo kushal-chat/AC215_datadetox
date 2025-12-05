@@ -1,0 +1,5 @@
+encryptionsalt: v1:vmgGxQyBMLw=:v1:vZuGFwZ7Y0y/nMOr:s1r530hWuVrwvMpJQ88UOOYecoaHVA==
+config:
+  gcp:project: fit-bulwark-471117-v6
+  security:gcp_service_account_email: deployment@fit-bulwark-471117-v6.iam.gserviceaccount.com
+  security:gcp_ksa_service_account_email: gcp-service@fit-bulwark-471117-v6.iam.gserviceaccount.com

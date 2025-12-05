@@ -1,0 +1,7 @@
+encryptionsalt: v1:Ql1K//qmtaQ=:v1:fhFyMtpDtq0O41hJ:fA2sI27np3naGsGEOOg3GMoHM2TJfw==
+config:
+  gcp:project: fit-bulwark-471117-v6
+  security:ssh_user: sa_108591812112685112774
+  security:gcp_service_account_email: deployment@fit-bulwark-471117-v6.iam.gserviceaccount.com
+  security:gcp_ksa_service_account_email: gcp-service@fit-bulwark-471117-v6.iam.gserviceaccount.com
+  deploy-k8s:setupSSL: "false"
