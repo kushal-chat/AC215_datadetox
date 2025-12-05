@@ -1,11 +1,14 @@
-from agents import Runner
+import json
+from agents import RunResultStreaming, Runner
 from fastapi import APIRouter, Request
+from fastapi.responses import StreamingResponse
+from openai.types.responses import ResponseTextDeltaEvent
 from pydantic import BaseModel
 
 import logging
 from rich.logging import RichHandler
 
-from .search import search_agent
+from .search import compiler_agent, hf_search_agent, neo4j_search_agent
 from .search.utils.tool_state import get_tool_result, set_request_context
 
 router = APIRouter(prefix="/flow")
@@ -13,37 +16,73 @@ router = APIRouter(prefix="/flow")
 logging.basicConfig(level=logging.INFO, handlers=[RichHandler()])
 logger = logging.getLogger(__name__)
 
-
 class Query(BaseModel):
     query_val: str
 
-
 @router.post("/search")
-async def run_search(query: Query, request: Request) -> dict:
+async def run_search(query: Query, request: Request):
     search_logger = logger.getChild("search")
-
-    # Initialize tool results storage in request state
     request.state.tool_results = {}
-
-    # Store the original user query for later use
     request.state.original_query = query.query_val
-
-    # Store request in context so tool functions can access it
     set_request_context(request)
 
     search_logger.info(f"Query '{query.query_val}' is running.")
 
-    res = await Runner.run(search_agent, input=f"Query: {query.query_val}")
+    ### HF
+    try:
+        hf_result: RunResultStreaming = Runner.run_streamed(
+            starting_agent=hf_search_agent, 
+            input=query.query_val
+        )
+        async for event in hf_result.stream_events():
+            if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                yield (event.data.delta)
 
-    search_logger.info(f"Query '{query.query_val}' is done running.")
+    except Exception as e:
+        search_logger.error(f"Failed to initialize Runner: {e}")
+        raise 
 
-    # Get the stored neo4j result from request state
-    neo4j_result = get_tool_result("search_neo4j", request)
+    ### NEO4J
+    ### TODO: TEST WITH RUNNING NEO4J
+    try:
+        neo4j_result: RunResultStreaming = Runner.run_streamed(
+            starting_agent=neo4j_search_agent, 
+            input=hf_result.final_output_as(str)
+        )
+        async for event in neo4j_result.stream_events():
+            if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                yield (event.data.delta)
 
-    response = {"result": res.final_output_as(str)}
+    except Exception as e:
+        search_logger.error(f"Failed to initialize Runner: {e}")
+        raise 
 
-    # Add neo4j_data if available
-    if neo4j_result is not None:
-        response["neo4j_data"] = neo4j_result.model_dump()
+    ### TODO: YIELD TREE?
 
-    return response
+    ### HF ON NEW MODELS
+    try:
+        hf_result: RunResultStreaming = Runner.run_streamed(
+            starting_agent=hf_search_agent, 
+            input=query.query_val
+        )
+        async for event in neo4j_result.final_output_as(str):
+            if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                yield (event.data.delta)
+
+    except Exception as e:
+        search_logger.error(f"Failed to initialize Runner: {e}")
+        raise 
+
+    ### FINAL
+    try:
+        compiled_response: RunResultStreaming = Runner.run_streamed(
+            starting_agent=compiler_agent, 
+            input=query.query_val
+        )
+        async for event in compiled_response.final_output_as(str):
+            if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
+                yield (event.data.delta)
+
+    except Exception as e:
+        search_logger.error(f"Failed to initialize Runner: {e}")
+        raise 
