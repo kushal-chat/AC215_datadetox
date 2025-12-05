@@ -18,7 +18,7 @@ Search for each of these in the GCP search bar and click enable to enable these 
     - Compute OS Login
     - Artifact Registry Administrator
     - Kubernetes Engine Admin
-    - Service Account User
+    - Service Account Admin
     - Storage Admin
 - Then click done.
 - This will create a service account
@@ -116,9 +116,9 @@ pulumi up --stack dev -y
 - When setting up pulumi for the first time run:
 ```
 pulumi stack init dev
-pulumi config set gcp:project ac215-project
-pulumi config set security:gcp_service_account_email deployment@ac215-project.iam.gserviceaccount.com --stack dev
-pulumi config set security:gcp_ksa_service_account_email gcp-service@ac215-project.iam.gserviceaccount.com --stack dev
+pulumi config set gcp:project <your-project-id>
+pulumi config set security:gcp_service_account_email deployment@<your-project-id>.iam.gserviceaccount.com --stack dev
+pulumi config set security:gcp_ksa_service_account_email gcp-service@<your-project-id>.iam.gserviceaccount.com --stack dev
 ```
 This will save all your deployment states to a GCP bucket
 
@@ -136,18 +136,18 @@ Here is how the various services communicate between each other in the Kubernete
 
 ```mermaid
 graph LR
-    B[Browser] -->|nginx-ip.sslip.io| LB[LoadBalancer Service<br/>External IP]
+    B[Browser] -->|ip.sslip.io| LB[LoadBalancer Service<br/>External IP]
     LB --> I[Nginx Ingress Controller]
     I -->|/ path| F[Frontend Service<br/>ClusterIP:3000]
-    I -->|/api-service path| A[API Service<br/>ClusterIP:9000]
-    A -->|vector-db DNS:8000| V[Vector-DB Service<br/>ClusterIP:8000]
-    V -.->|one-time load| J[Vector DB Loader Job]
+    I -->|/backend/ path| A[Backend Service<br/>ClusterIP:8000]
+    A -->|bolt://neo4j:7687| N[Neo4j Service<br/>ClusterIP:7474/7687]
+    N -.->|one-time load| J[Model Lineage Job]
 
     style LB fill:#yellow
     style I fill:#lightblue
     style F fill:#lightgreen
     style A fill:#lightgreen
-    style V fill:#lightgreen
+    style N fill:#lightgreen
     style J fill:#orange
 ```
 
@@ -165,9 +165,9 @@ kubectl get nodes
 
 ### If you want to shell into a container in a Pod
 ```
-kubectl get pods --namespace=cheese-app-namespace
-kubectl get pod api-c4fb784b-2llgs --namespace=cheese-app-namespace
-kubectl exec --stdin --tty api-c4fb784b-2llgs --namespace=cheese-app-namespace  -- /bin/bash
+kubectl get pods --namespace=datadetox-namespace
+kubectl get pod api-c4fb784b-2llgs --namespace=datadetox-namespace
+kubectl exec --stdin --tty api-c4fb784b-2llgs --namespace=datadetox-namespace  -- /bin/bash
 ```
 
 ### View the App
@@ -190,146 +190,3 @@ pulumi destroy --stack dev --refresh -y
 ```
 
 ---
-
-
-## Create Simple Kubernetes Cluster Tutorial
-
-### API's to enable in GCP for Project
-We have already done this in the deployment tutorial but in case you have not done that step. Search for each of these in the GCP search bar and click enable to enable these API's
-* Compute Engine API
-* Service Usage API
-* Cloud Resource Manager API
-* Google Container Registry API
-* Kubernetes Engine API
-
-### Start Deployment Docker Container
--  `cd deployment`
-- Run `sh docker-shell.sh` or `docker-shell.bat` for windows
-- Check versions of tools
-`gcloud --version`
-`kubectl version`
-`kubectl version --client`
-
-- Check if make sure you are authenticated to GCP
-- Run `gcloud auth list`
-
-
-### Create Cluster
-```
-gcloud container clusters create test-cluster --num-nodes 2 --zone us-east1-c
-```
-
-### Checkout the cluster in GCP
-* Go to the Kubernetes Engine menu item to see the cluster details
-    - Click on the cluster name to see the cluster details
-    - Click on the Nodes tab to view the nodes
-    - Click on any node to see the pods running in the node
-* Go to the Compute Engine menu item to see the VMs in the cluster
-
-### Try some kubectl commands
-```
-kubectl get all
-kubectl get all --all-namespaces
-kubectl get pods --all-namespaces
-```
-
-```
-kubectl get componentstatuses
-kubectl get nodes
-```
-
-### Deploy the App
-```
-kubectl apply -f deploy-k8s-tic-tac-toe.yml
-```
-
-### Get the Loadbalancer external IP
-```
-kubectl get services
-```
-
-### View the App
-* Copy the `External IP` from the `kubectl get services`
-* Go to `http://<YOUR EXTERNAL IP>`
-
-
-### Delete Cluster
-```
-gcloud container clusters delete test-cluster --zone us-east1-c
-```
-
-
-
-
----
-
-
-## Debugging Containers
-
-If you want to debug any of the containers to see if something is wrong
-
-* View running containers
-```
-sudo docker container ls
-```
-
-* View images
-```
-sudo docker image ls
-```
-
-* View logs
-```
-sudo docker container logs api-service -f
-sudo docker container logs frontend -f
-sudo docker container logs nginx -f
-```
-
-* Get into shell
-```
-sudo docker exec -it api-service /bin/bash
-sudo docker exec -it frontend /bin/bash
-sudo docker exec -it nginx /bin/bash
-```
-
-
-```
-# Check the init container logs:
-kubectl logs -n cheese-app-cluster-namespace job/vector-db-loader -c wait-for-chromadb
-
-# Check the main container logs:
-kubectl logs -n cheese-app-cluster-namespace job/vector-db-loader -c vector-db-loader
-
-# Check the job status:
-kubectl describe job vector-db-loader -n cheese-app-cluster-namespace
-
-
-
-# First, find the pod name for your job
-kubectl get pods -n cheese-app-cluster-namespace | grep vector-db-loader
-
-# Then get the logs from that pod (replace <pod-name> with the actual name)
-kubectl logs -n cheese-app-cluster-namespace <pod-name>
-kubectl logs -n cheese-app-cluster-namespace vector-db-loader-9gr5m
-
-# If you want to see logs from the init container specifically
-kubectl logs -n cheese-app-cluster-namespace <pod-name> -c wait-for-chromadb
-kubectl logs -n cheese-app-cluster-namespace vector-db-loader-wlfdx -c wait-for-chromadb
-
-# If you want to see logs from the main container
-kubectl logs -n cheese-app-cluster-namespace <pod-name> -c vector-db-loader
-kubectl logs -n cheese-app-cluster-namespace vector-db-loader-wlfdx -c vector-db-loader
-
-# You can also get logs directly from the job (this will show logs from the most recent pod)
-kubectl logs job/vector-db-loader -n cheese-app-cluster-namespace
-
-# To see previous logs if the pod has restarted
-kubectl logs job/vector-db-loader -n cheese-app-cluster-namespace --previous
-
-
-# View logs from the current API pod
-kubectl logs deployment/api -n cheese-app-cluster-namespace
-
-# Follow the logs
-kubectl logs deployment/api -n cheese-app-cluster-namespace -f
-```
