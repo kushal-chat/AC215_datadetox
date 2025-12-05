@@ -40,6 +40,7 @@ else
     -v "$BASE_DIR/../frontend":/frontend \
     -v "$BASE_DIR/../model-lineage":/model-lineage \
     -v "$BASE_DIR/../neo4j":/neo4j \
+    -v "$BASE_DIR/../.env":/app/.env \
     -e GOOGLE_APPLICATION_CREDENTIALS=$GOOGLE_APPLICATION_CREDENTIALS \
     -e USE_GKE_GCLOUD_AUTH_PLUGIN=True \
     -e GCP_PROJECT=$GCP_PROJECT \
