@@ -164,11 +164,17 @@ def setup_containers(project, namespace, k8s_provider, ksa_name):
                                     name="NEO4J_AUTH", value=neo4j_auth
                                 ),  # Neo4j authentication
                                 k8s.core.v1.EnvVarArgs(
-                                    name="NEO4J_dbms_memory_heap_maxSize", value="2G"
+                                    name="NEO4J_server_memory_heap_max__size",
+                                    value="2G",
                                 ),  # Set Neo4j heap size to 2GB
                                 k8s.core.v1.EnvVarArgs(
-                                    name="NEO4J_dbms_memory_pagecache_size", value="1G"
+                                    name="NEO4J_server_memory_pagecache_size",
+                                    value="1G",
                                 ),  # Set Neo4j page cache size to 1GB
+                                k8s.core.v1.EnvVarArgs(
+                                    name="NEO4J_server_config_strict__validation_enabled",
+                                    value="false",
+                                ),  # Disable strict validation to ignore K8s injected env vars
                             ],
                             volume_mounts=[
                                 k8s.core.v1.VolumeMountArgs(
