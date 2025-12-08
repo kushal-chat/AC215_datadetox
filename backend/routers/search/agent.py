@@ -1,5 +1,5 @@
 from typing import List
-from agents import Agent, FunctionTool, StopAtTools
+from agents import Agent, FunctionTool
 from .utils import search_huggingface, search_neo4j
 
 tools: List[FunctionTool] = [search_huggingface, search_neo4j]

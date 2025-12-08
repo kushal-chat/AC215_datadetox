@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 hf_token = os.getenv("HF_TOKEN")
 hf_api = HfApi(token=hf_token)
 
+
 def search_models(
     query: str, limit: int = 5, sort: str = "downloads"
 ) -> List[Dict[str, str]]:
