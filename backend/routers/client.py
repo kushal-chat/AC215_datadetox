@@ -7,6 +7,7 @@ from rich.logging import RichHandler
 
 from .search import search_agent
 from .search.utils.tool_state import get_tool_result, set_request_context
+from .search.utils.dataset_resolver import enrich_dataset_info
 
 router = APIRouter(prefix="/flow")
 
@@ -39,11 +40,32 @@ async def run_search(query: Query, request: Request) -> dict:
 
     # Get the stored neo4j result from request state
     neo4j_result = get_tool_result("search_neo4j", request)
+    datasets_result = get_tool_result("extract_training_datasets", request)
 
     response = {"result": res.final_output_as(str)}
 
     # Add neo4j_data if available
     if neo4j_result is not None:
-        response["neo4j_data"] = neo4j_result.model_dump()
+        neo4j_data = neo4j_result.model_dump()
+
+        # Merge dataset information into the nodes
+        if datasets_result is not None and isinstance(datasets_result, dict):
+            # Create a mapping of model_id to dataset info
+            for node in neo4j_data.get("nodes", {}).get("nodes", []):
+                model_id = node.get("model_id")
+                if model_id and model_id in datasets_result:
+                    dataset_info = datasets_result[model_id]
+                    # Add training_datasets field to the node
+                    node["training_datasets"] = {
+                        "arxiv_url": dataset_info.get("arxiv_url"),
+                        "datasets": [],
+                    }
+
+                    # Enrich dataset information with HuggingFace URLs
+                    raw_datasets = dataset_info.get("datasets", [])
+                    enriched_datasets = enrich_dataset_info(raw_datasets)
+                    node["training_datasets"]["datasets"] = enriched_datasets
+
+        response["neo4j_data"] = neo4j_data
 
     return response

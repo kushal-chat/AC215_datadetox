@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import ChatMessage from "@/components/ChatMessage";
-import ModelTree from "@/components/ModelTree";
+import ModelTree from "@/components/ModelTreeNew";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
