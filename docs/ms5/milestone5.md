@@ -1,45 +1,43 @@
 ## Objectives
 1. Production Deployment & Infrastructure Automation
-- [ ] Deploy your full application to a cloud Kubernetes cluster (GCP or AWS).
-- [ ] Demonstrate reliability and basic scalability (e.g., scaling pods up/down under load).
-- [ ] Automate infrastructure provisioning and deployment using Pulumi.
-- [ ] Integrate ML workflow elements (data preprocessing, training, evaluation, retraining triggers) into your deployed system.
+- [X] Deploy your full application to a cloud Kubernetes cluster (GCP or AWS).
+- [X] Demonstrate reliability and basic scalability (e.g., scaling pods up/down under load).
+- [X] Automate infrastructure provisioning and deployment using Pulumi.
+- [N/A] Integrate ML workflow elements (data preprocessing, training, evaluation, retraining triggers) into your deployed system.
 
 2. CI/CD for Production
 - [ ] Extend your GitHub Actions pipelines to support deployment.
-- [ ] Include unit tests and integration tests tests.
+- [ ] Include unit tests and integration tests.
 - [ ] Achieve minimum 60% test coverage, and clearly document what remains untested.
 - [ ] Ensure merges to main trigger an automated build-and-deploy pipeline.
 
 3. Public Communication and Presentation Materials
-
 - [ ] Prepare a polished 6-minute video describing and demonstrating your project.
 - [ ] Write a 600–800 word Medium blog post explaining your project to a general audience.
 - [ ] Create engaging booth materials for the showcase (e.g., diagrams, QR codes).
 
 4. Showcase Preparation
-
 - [ ] Ensure your application is publicly accessible, stable, and easy to demo.
 - [ ] Prepare to explain your architecture, decisions, and business value to visitors.
 
 ## Deliverables
 ### 1. Technical Implementation
-- [ ] Kubernetes Deployment:
-    - [ ] Deploy the application to a Kubernetes cluster.
-    - [ ] Demonstrate basic scaling behavior by varying the load and showing how the cluster responds (e.g., scaling replicas/pods).
-- [ ] Pulumi Infrastructure Code:
-    - [ ] Use Pulumi to automate the provisioning and deployment of your infrastructure (e.g., Kubernetes cluster, networking, storage, configurations, etc.) and application.
+- [X] Kubernetes Deployment:
+    - [X] Deploy the application to a Kubernetes cluster.
+    - [X] Demonstrate basic scaling behavior by varying the load and showing how the cluster responds (e.g., scaling replicas/pods).
+- [X] Pulumi Infrastructure Code:
+    - [X] Use Pulumi to automate the provisioning and deployment of your infrastructure (e.g., Kubernetes cluster, networking, storage, configurations, etc.) and application.
 - [ ] CI/CD Pipeline Implementation (GitHub Actions):
     - [ ] Set up a CI/CD pipeline using GitHub Actions. The pipeline should:
         - [ ] Have a unit test suite for each service/container.
         - [ ] Run integration tests on the code base .
         - [ ] Deploy updates to the Kubernetes cluster upon merging changes into the main branch.
         - [ ] Achieve at least 60% line coverage. Document which functions and modules are not covered by tests.
-- [ ] Machine Learning Workflow:
-    - [ ] Demonstrate a production-ready ML workflow, including:
-        - [ ] Data preprocessing, model training, and evaluation steps integrated into the pipeline.
-        - [ ] Automated retraining and deployment triggered by new data or updates to the codebase.
-        - [ ] Validation checks to ensure only models meeting performance thresholds are deployed.
+- [X] Machine Learning Workflow:
+    - Demonstrate a production-ready ML workflow, including:
+        - Data preprocessing, model training, and evaluation steps integrated into the pipeline.
+        - Automated retraining and deployment triggered by new data or updates to the codebase.
+        - Validation checks to ensure only models meeting performance thresholds are deployed.
 
 ### 2. Documentation
 - [ ] GitHub Repository:
