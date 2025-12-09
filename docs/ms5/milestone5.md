@@ -30,10 +30,10 @@
 - [ ] CI/CD Pipeline Implementation (GitHub Actions):
     - [ ] Set up a CI/CD pipeline using GitHub Actions. The pipeline should:
         - [X] Have a unit test suite for each service/container.
-        - [ ] Run integration tests on the code base .
+        - [X] Run integration tests on the code base.
         - [ ] Deploy updates to the Kubernetes cluster upon merging changes into the main branch.
         - [ ] Achieve at least 60% line coverage. Document which functions and modules are not covered by tests.
-- [X] Machine Learning Workflow:
+- [N/A] Machine Learning Workflow:
     - Demonstrate a production-ready ML workflow, including:
         - Data preprocessing, model training, and evaluation steps integrated into the pipeline.
         - Automated retraining and deployment triggered by new data or updates to the codebase.

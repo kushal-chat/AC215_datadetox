@@ -2,7 +2,7 @@ name: datadetox-cicd
 
 on:
   push:
-    branches: [main, develop, "milestone*"]
+    branches: [main, develop, "milestone*", "deployment"]
   pull_request:
     branches: [main, develop, "milestone*"]
 
@@ -92,3 +92,75 @@ jobs:
         with:
           name: frontend-coverage-report
           path: frontend/coverage/
+
+  integration-tests:
+    runs-on: ubuntu-latest
+    services:
+      neo4j:
+        image: neo4j:5
+        env:
+          NEO4J_AUTH: neo4j/test_password
+        ports:
+          - 7687:7687
+          - 7474:7474
+        options: >-
+          --health-cmd "cypher-shell -u neo4j -p test_password 'RETURN 1'"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: |
+          uv sync --dev
+
+      - name: Run backend integration tests
+        working-directory: ./backend
+        env:
+          NEO4J_URI: bolt://localhost:7687
+          NEO4J_USER: neo4j
+          NEO4J_PASSWORD: test_password
+          NEO4J_TEST_URI: bolt://localhost:7687
+          NEO4J_TEST_USER: neo4j
+          NEO4J_TEST_PASSWORD: test_password
+        run: |
+          uv run pytest tests/integration/ -v -m integration
+
+      - name: Install model-lineage dependencies
+        working-directory: ./model-lineage
+        run: |
+          uv sync --dev
+
+      - name: Run model-lineage integration tests
+        working-directory: ./model-lineage
+        env:
+          NEO4J_URI: bolt://localhost:7687
+          NEO4J_USER: neo4j
+          NEO4J_PASSWORD: test_password
+        run: |
+          uv run pytest tests/integration/ -v
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: |
+          npm ci
+
+      - name: Run frontend integration tests
+        working-directory: ./frontend
+        run: |
+          npm test -- --run src/integration/
+        env:
+          CI: true
