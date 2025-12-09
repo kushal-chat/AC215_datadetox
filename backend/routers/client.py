@@ -19,7 +19,11 @@ from .search import (
     neo4j_search_agent,
 )
 from .search.utils.dataset_risk import build_dataset_risk_context
-from .search.utils.tool_state import get_tool_result, set_request_context
+from .search.utils.tool_state import (
+    get_tool_result,
+    set_request_context,
+    set_progress_callback,
+)
 
 router = APIRouter(prefix="/flow")
 
@@ -210,13 +214,55 @@ async def run_search(query: Query, request: Request):
                                 f"Fallback Neo4j search failed: {fallback_error}"
                             )
 
+                # Check if model was found in Neo4j - if not, end early
                 model_ids = _extract_model_ids_from_graph(neo4j_graph)
+                if not model_ids or (neo4j_graph and len(neo4j_graph.nodes.nodes) == 0):
+                    search_logger.warning(
+                        "Model not found in Neo4j database, ending workflow at Stage 2"
+                    )
+
+                    # Prepare a user-friendly response
+                    not_found_message = (
+                        "I couldn't find this model in our Neo4j lineage database. "
+                        "This could mean:\n"
+                        "- The model hasn't been indexed yet\n"
+                        "- The model ID may be incorrect\n"
+                        "- The model exists on HuggingFace but doesn't have lineage relationships in our database\n\n"
+                        f"Based on the HuggingFace search:\n{hf_summary}"
+                    )
+
+                    await status_queue.put(not_found_message)
+
+                    # Send empty metadata to signal completion
+                    metadata_payload: Dict[str, Any] = {
+                        "neo4j_data": None,
+                        "training_datasets": {},
+                        "dataset_risk": {},
+                        "models_analyzed": [],
+                        "stage_summaries": {
+                            "huggingface_initial": hf_summary,
+                            "neo4j_lineage": "Model not found in Neo4j database",
+                        },
+                    }
+
+                    metadata_json = json.dumps(metadata_payload)
+                    await status_queue.put("\n\n<METADATA_START>")
+                    await status_queue.put(metadata_json)
+                    await status_queue.put("<METADATA_END>")
+                    return
 
                 dataset_task = None
                 hf_followup_task = None
                 # Stage 3: Arxiv dataset extraction agent (uses new tooling)
                 if model_ids:
                     await emit_status("Stage 3: Extracting training datasets...")
+
+                    # Set up progress callback for fine-grained updates
+                    async def dataset_progress(message: str):
+                        await emit_status(message)
+
+                    set_progress_callback(dataset_progress)
+
                     dataset_payload = json.dumps(
                         {
                             "instruction": "Extract training datasets from arxiv papers for these HuggingFace models.",
@@ -236,12 +282,10 @@ async def run_search(query: Query, request: Request):
                         "No model IDs available to run dataset extraction."
                     )
 
-                # Stage 4: Follow-up HuggingFace pass using Neo4j insights (run concurrently)
+                # Stage 4: Follow-up HuggingFace pass using Neo4j insights (run concurrently with Stage 3)
+                # Note: We start this in parallel with Stage 3 for performance, but don't emit status yet
                 try:
                     followup_input = neo4j_result.final_output_as(str)
-                    await emit_status(
-                        "Stage 4: Running follow-up HuggingFace lookup..."
-                    )
                     hf_followup = Runner.run_streamed(
                         starting_agent=hf_search_agent,
                         input=followup_input,
@@ -291,7 +335,7 @@ async def run_search(query: Query, request: Request):
                 if dataset_task:
                     await emit_status("Stage 3 complete.")
                 if hf_followup_task:
-                    await emit_status("Stage 4 complete.")
+                    await emit_status("Stage 4: Follow-up HuggingFace lookup complete.")
 
                 training_dataset_map = get_tool_result(
                     "extract_training_datasets", request

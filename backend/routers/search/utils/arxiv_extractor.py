@@ -360,9 +360,10 @@ class ArxivPaperParser:
 class ArxivDatasetExtractor:
     """Main orchestrator for extracting dataset information from arxiv papers."""
 
-    def __init__(self):
+    def __init__(self, progress_callback=None):
         self.link_extractor = ArxivLinkExtractor()
         self.paper_parser = ArxivPaperParser()
+        self.progress_callback = progress_callback
 
     async def extract_for_models(
         self, model_ids: List[str], max_concurrent: int = 8
@@ -414,6 +415,11 @@ class ArxivDatasetExtractor:
         try:
             # Step 1: Extract arxiv link from model card
             logger.info(f"Extracting arxiv link for {model_id}")
+            if self.progress_callback:
+                await self.progress_callback(
+                    f"Stage 3.1: Searching for paper link in {model_id}"
+                )
+
             arxiv_url = await self.link_extractor.extract_from_model_card(
                 model_id, session
             )
@@ -421,10 +427,20 @@ class ArxivDatasetExtractor:
 
             if not arxiv_url:
                 logger.info(f"No arxiv link found for {model_id}")
+                if self.progress_callback:
+                    await self.progress_callback(
+                        f"Stage 3.1: No paper found for {model_id}"
+                    )
                 return info
 
             # Step 2: Parse arxiv paper for dataset information
             logger.info(f"Parsing arxiv paper for {model_id}: {arxiv_url}")
+            arxiv_id = arxiv_url.split("/")[-1]
+            if self.progress_callback:
+                await self.progress_callback(
+                    f"Stage 3.2: Reading paper {arxiv_id} for {model_id}"
+                )
+
             datasets = await self.paper_parser.parse_paper(
                 arxiv_url, session, model_id=model_id
             )
@@ -434,8 +450,15 @@ class ArxivDatasetExtractor:
                 f"Completed extraction for {model_id}: found {len(datasets)} datasets"
             )
 
+            if self.progress_callback:
+                await self.progress_callback(
+                    f"Stage 3.3: Found {len(datasets)} datasets for {model_id}"
+                )
+
         except Exception as e:
             logger.error(f"Error extracting for {model_id}: {e}")
+            if self.progress_callback:
+                await self.progress_callback(f"Stage 3: Error processing {model_id}")
 
         return info
 

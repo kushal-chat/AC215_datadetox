@@ -96,14 +96,17 @@ def resolve_dataset_url(
     dataset_name: str, existing_url: Optional[str] = None
 ) -> Optional[str]:
     """
-    Resolve a dataset name to a HuggingFace URL if possible.
+    Resolve a dataset name to a HuggingFace search URL to avoid hallucination.
+
+    IMPORTANT: Always returns search URLs instead of direct dataset links to prevent
+    hallucination, since dataset IDs always contain the author name as prefix.
 
     Args:
         dataset_name: Name of the dataset (e.g., "squad", "imagenet")
         existing_url: Existing URL if already known
 
     Returns:
-        HuggingFace dataset URL if found, None otherwise
+        HuggingFace dataset search URL
     """
     # If URL already exists, return it
     if existing_url:
@@ -111,35 +114,22 @@ def resolve_dataset_url(
 
     dataset_name_lower = dataset_name.lower().strip()
 
-    # Check if it's already a HuggingFace ID format (has a slash)
-    if "/" in dataset_name_lower:
-        if check_dataset_exists(dataset_name_lower):
-            return f"https://huggingface.co/datasets/{dataset_name_lower}"
-        return None
-
-    # Check known mappings
-    if dataset_name_lower in KNOWN_DATASET_MAPPINGS:
-        dataset_id = KNOWN_DATASET_MAPPINGS[dataset_name_lower]
-        if check_dataset_exists(dataset_id):
-            return f"https://huggingface.co/datasets/{dataset_id}"
-
-    # Try the dataset name directly
-    if check_dataset_exists(dataset_name_lower):
-        return f"https://huggingface.co/datasets/{dataset_name_lower}"
-
-    # No URL found
-    return None
+    # ALWAYS use search URL format to avoid hallucinating incorrect dataset IDs
+    # This is safer than constructing direct URLs which may not exist
+    return f"https://huggingface.co/datasets?search={dataset_name_lower}"
 
 
 def enrich_dataset_info(datasets: List[Dict]) -> List[Dict]:
     """
-    Enrich dataset information with HuggingFace URLs.
+    Enrich dataset information with HuggingFace search URLs.
+
+    IMPORTANT: Always uses search URLs to avoid hallucinating incorrect dataset IDs.
 
     Args:
         datasets: List of dataset dictionaries with 'name', 'url', and 'description'
 
     Returns:
-        Enriched list of datasets with resolved URLs
+        Enriched list of datasets with search URLs
     """
     enriched = []
 
@@ -149,20 +139,16 @@ def enrich_dataset_info(datasets: List[Dict]) -> List[Dict]:
 
         enriched_dataset = {
             "name": name,
-            "url": url,
+            "url": url if url else None,  # Keep existing URLs if present
             "description": dataset.get("description"),
         }
 
-        # Try to resolve URL if not present
-        if name and not url:
-            resolved_url = resolve_dataset_url(name, url)
-            if resolved_url:
-                enriched_dataset["url"] = resolved_url
-            else:
-                # Add search URL as fallback
-                enriched_dataset["hf_search_url"] = (
-                    f"https://huggingface.co/datasets?search={name.lower()}"
-                )
+        # Always add search URL to avoid hallucination
+        if name:
+            # Resolve to search URL format (safer than direct links)
+            search_url = resolve_dataset_url(name, url)
+            if search_url:
+                enriched_dataset["url"] = search_url
 
         enriched.append(enriched_dataset)
 

@@ -1,11 +1,12 @@
 """Agent tool for extracting training datasets from arxiv papers."""
 
+import asyncio
 import logging
 from typing import Dict, Any, List
 from agents import function_tool
 from .arxiv_extractor import ArxivDatasetExtractor
 from .dataset_resolver import enrich_dataset_info
-from .tool_state import set_tool_result
+from .tool_state import set_tool_result, get_progress_callback
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,19 @@ def extract_training_datasets(model_ids: List[str]) -> Dict[str, Any]:
     logger.info(f"Extracting training datasets for {len(model_ids)} models")
 
     try:
-        extractor = ArxivDatasetExtractor()
+        # Get progress callback from context
+        progress_callback = get_progress_callback()
+
+        # Create wrapper to convert sync callback to async
+        async def async_progress(message: str):
+            if progress_callback:
+                if asyncio.iscoroutinefunction(progress_callback):
+                    await progress_callback(message)
+                else:
+                    # If callback is sync, just call it
+                    progress_callback(message)
+
+        extractor = ArxivDatasetExtractor(progress_callback=async_progress)
 
         # Process all models in parallel
         results = extractor.extract_sync(model_ids, max_concurrent=5)

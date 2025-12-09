@@ -243,7 +243,7 @@ const Chatbot = () => {
           firstChunkReceived = true;
           setMessages((prev) => {
             const filtered = prev.filter(msg => msg.id !== thinkingId);
-            return [...filtered, { ...aiMessage, isThinking: false }];
+            return [...filtered, aiMessage]; // Keep isThinking: true until complete
           });
         }
 

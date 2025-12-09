@@ -10,6 +10,11 @@ _request_context: ContextVar[Optional[Request]] = ContextVar(
     "request_context", default=None
 )
 
+# Store progress callback for tools to emit status updates
+_progress_callback: ContextVar[Optional[Any]] = ContextVar(
+    "progress_callback", default=None
+)
+
 
 def set_request_context(request: Request) -> None:
     """Store the current request in the async context."""
@@ -45,3 +50,13 @@ def get_tool_result(tool_name: str, request: Optional[Request] = None) -> Option
         return request.state.tool_results.get(tool_name)
 
     return None
+
+
+def set_progress_callback(callback: Any) -> None:
+    """Store the progress callback in the async context."""
+    _progress_callback.set(callback)
+
+
+def get_progress_callback() -> Optional[Any]:
+    """Get the progress callback from the async context."""
+    return _progress_callback.get(None)

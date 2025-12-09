@@ -182,6 +182,11 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
       models = neo4jData.nodes.nodes.filter(n => n.model_id);
     }
     const modelIdSet = new Set(models.map(m => m.model_id!));
+
+    console.log('Available model IDs:', Array.from(modelIdSet));
+    console.log('Total models before filtering:', neo4jData.nodes.nodes.length);
+    console.log('Total models after filtering:', models.length);
+    console.log('Queried model ID:', neo4jData.queried_model_id);
     const queriedModelId = neo4jData.queried_model_id || models[0]?.model_id;
 
     // Build dataset information
@@ -219,31 +224,93 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
     const flowEdges: Edge[] = [];
     const processedEdges = new Set<string>();
 
+    console.log('Processing relationships:', relationships.length, 'Total models in set:', modelIdSet.size);
+    console.log('Available node IDs for edge creation:', Array.from(modelIdSet));
+
     relationships.forEach(rel => {
       const sourceId = getNodeId(rel.source);
       const targetId = getNodeId(rel.target);
       const sourceIsModel = rel.source.model_id;
       const targetIsModel = rel.target.model_id;
 
-      // Only model-to-model relationships
-      if (sourceIsModel && targetIsModel && modelIdSet.has(sourceId) && modelIdSet.has(targetId)) {
-        const edgeId = `${sourceId}-${targetId}`;
-        if (!processedEdges.has(edgeId)) {
-          flowEdges.push({
-            id: edgeId,
-            source: sourceId,
-            target: targetId,
-          label: rel.relationship.replace(/_/g, ' '),
-          type: 'smoothstep',
-          className: 'edge-yellow',
-          style: { stroke: '#facc15', strokeWidth: 3.5 },
-            labelStyle: { fill: '#1f2937', fontSize: 11, fontWeight: 700 },
-            labelBgStyle: { fill: '#e2e8f0', opacity: 0.9 },
+      console.log('Relationship:', {
+        source: sourceId,
+        target: targetId,
+        relationship: rel.relationship,
+        sourceIsModel,
+        targetIsModel,
+        sourceInSet: modelIdSet.has(sourceId),
+        targetInSet: modelIdSet.has(targetId)
+      });
+
+      // STRICT VALIDATION: Only create edges if BOTH nodes exist in our filtered set
+      if (sourceIsModel && targetIsModel) {
+        const sourceExists = modelIdSet.has(sourceId);
+        const targetExists = modelIdSet.has(targetId);
+
+        if (sourceExists && targetExists) {
+          // Use a safer edge ID format to avoid conflicts with model IDs containing hyphens
+          const edgeId = `edge_${sourceId}_to_${targetId}`;
+          if (!processedEdges.has(edgeId)) {
+            console.log('✅ Creating edge:', edgeId, 'from', sourceId, 'to', targetId, 'with label:', rel.relationship);
+            flowEdges.push({
+              id: edgeId,
+              source: sourceId,
+              target: targetId,
+              label: rel.relationship.replace(/_/g, ' '),
+              type: 'smoothstep',
+              className: 'edge-yellow',
+              style: { stroke: '#facc15', strokeWidth: 3.5 },
+              labelStyle: { fill: '#1f2937', fontSize: 11, fontWeight: 700 },
+              labelBgStyle: { fill: '#e2e8f0', opacity: 0.9 },
+            });
+            processedEdges.add(edgeId);
+          }
+        } else {
+          console.warn('⚠️  Skipping edge - missing nodes:', {
+            edge: `${sourceId} -> ${targetId}`,
+            sourceExists,
+            targetExists,
+            relationship: rel.relationship
           });
-        processedEdges.add(edgeId);
-      }
+        }
       }
     });
+    console.log('Created', flowEdges.length, 'edges');
+    console.log('Edge details:', flowEdges.map(e => ({ id: e.id, source: e.source, target: e.target })));
+
+    // Create a set of all node IDs for validation
+    const nodeIdSet = new Set(flowNodes.map(n => n.id));
+    console.log('Flow nodes created:', flowNodes.length);
+    console.log('Node IDs in flowNodes:', Array.from(nodeIdSet));
+
+    // Filter out any edges that reference non-existent nodes (defensive check)
+    const validEdges = flowEdges.filter(edge => {
+      const isValid = nodeIdSet.has(edge.source) && nodeIdSet.has(edge.target);
+      if (!isValid) {
+        console.error('❌ Filtering out invalid edge:', {
+          edgeId: edge.id,
+          source: edge.source,
+          target: edge.target,
+          sourceExists: nodeIdSet.has(edge.source),
+          targetExists: nodeIdSet.has(edge.target),
+          label: edge.label
+        });
+        console.error('Available nodes:', Array.from(nodeIdSet));
+      }
+      return isValid;
+    });
+
+    console.log(`✅ Valid edges: ${validEdges.length} out of ${flowEdges.length}`);
+    if (validEdges.length !== flowEdges.length) {
+      console.warn(`⚠️  Filtered out ${flowEdges.length - validEdges.length} invalid edges`);
+    }
+
+    if (validEdges.length === 0 && flowEdges.length > 0) {
+      console.error('🚨 NO VALID EDGES! All edges were filtered out.');
+      console.error('This means none of the relationship sources/targets match the node IDs.');
+      console.error('Check the "Skipping edge" warnings above to see why edges were not created.');
+    }
 
     // Adaptive spacing: scale out mildly as the graph grows to avoid overlaps
     const nodeCount = flowNodes.length || 1;
@@ -252,8 +319,8 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
     const layerSpacing = 130 * densityScale;
 
     // Apply automatic layout
-    console.log('Applying layout to', flowNodes.length, 'nodes and', flowEdges.length, 'edges', 'spacing', nodeSpacing, layerSpacing);
-    getLayoutedElements(flowNodes, flowEdges, {
+    console.log('Applying layout to', flowNodes.length, 'nodes and', validEdges.length, 'edges', 'spacing', nodeSpacing, layerSpacing);
+    getLayoutedElements(flowNodes, validEdges, {
       direction: 'UP',  // Upstream at top, downstream at bottom
       nodeSpacing,
       layerSpacing,
@@ -261,8 +328,49 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
       edgeRouting: 'ORTHOGONAL',
     }).then(({ nodes: layoutedNodes, edges: layoutedEdges }) => {
       console.log('Layout complete. First node position:', layoutedNodes[0]?.position);
+
+      // Final validation: ensure all edges reference existing nodes
+      const finalNodeIds = new Set(layoutedNodes.map(n => n.id));
+      const finalValidEdges = layoutedEdges.filter(edge => {
+        const isValid = finalNodeIds.has(edge.source) && finalNodeIds.has(edge.target);
+        if (!isValid) {
+          console.error('🚨 FINAL VALIDATION: Filtering out invalid edge after layout:', {
+            edge: edge.id,
+            source: edge.source,
+            target: edge.target
+          });
+        }
+        return isValid;
+      });
+
+      console.log(`Final edge count: ${finalValidEdges.length} (filtered ${layoutedEdges.length - finalValidEdges.length})`);
+
+      // ULTRA-DEFENSIVE: Triple-check edges one more time right before setting
+      const finalNodeIdList = layoutedNodes.map(n => n.id);
+      console.log('🔍 Final nodes being set to React Flow:', finalNodeIdList);
+
+      const ultraSafeEdges = finalValidEdges.filter(edge => {
+        const valid = finalNodeIdList.includes(edge.source) && finalNodeIdList.includes(edge.target);
+        if (!valid) {
+          console.error('🛑 ULTRA-DEFENSIVE FILTER caught invalid edge:', {
+            edge: edge.id,
+            source: edge.source,
+            target: edge.target,
+            sourceExists: finalNodeIdList.includes(edge.source),
+            targetExists: finalNodeIdList.includes(edge.target)
+          });
+        }
+        return valid;
+      });
+
+      console.log('🔍 Final edges being set to React Flow:', ultraSafeEdges.map(e => `${e.source} -> ${e.target}`));
+
+      if (ultraSafeEdges.length !== finalValidEdges.length) {
+        console.error(`🚨 CAUGHT ${finalValidEdges.length - ultraSafeEdges.length} invalid edges in ultra-defensive filter!`);
+      }
+
       setNodes(layoutedNodes);
-      setEdges(layoutedEdges);
+      setEdges(ultraSafeEdges);
       // Fit view after layout
       setTimeout(() => fitView({ padding: 0.2 }), 100);
     }).catch(error => {
@@ -272,8 +380,24 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
         ...node,
         position: { x: (i % 3) * 400, y: Math.floor(i / 3) * 300 },
       }));
+
+      // ULTRA-DEFENSIVE: Validate edges in fallback path too
+      const fallbackNodeIds = fallbackNodes.map(n => n.id);
+      const safeFallbackEdges = validEdges.filter(edge => {
+        const valid = fallbackNodeIds.includes(edge.source) && fallbackNodeIds.includes(edge.target);
+        if (!valid) {
+          console.error('🛑 FALLBACK FILTER caught invalid edge:', {
+            edge: edge.id,
+            source: edge.source,
+            target: edge.target
+          });
+        }
+        return valid;
+      });
+
+      console.log('📍 Using fallback layout with', fallbackNodes.length, 'nodes and', safeFallbackEdges.length, 'edges');
       setNodes(fallbackNodes);
-      setEdges(flowEdges);
+      setEdges(safeFallbackEdges);
     });
   }, [neo4jData, datasetRisk, getLayoutedElements, fitView]);
 
@@ -296,7 +420,7 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
   }
 
   return (
-    <Card className="bg-white border border-slate-200 shadow-md h-full flex flex-col text-slate-900">
+    <Card className="bg-slate-900 border border-slate-700 shadow-md h-full flex flex-col text-slate-100">
       <CardContent className="p-0 flex-1 flex flex-col relative">
         <style>{`
           .edge-yellow path {
@@ -318,13 +442,13 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
           fitView
           minZoom={0.1}
           maxZoom={2}
-          style={{ backgroundColor: '#f8fafc' }}
+          style={{ backgroundColor: '#0f172a' }}
           defaultEdgeOptions={{
             className: 'edge-yellow',
             style: { strokeWidth: 3.5, stroke: '#facc15' },
           }}
         >
-          <Background color="#cbd5e1" gap={16} />
+          <Background color="#334155" gap={16} />
           <Controls />
           <MiniMap
             nodeColor={(node) => {
@@ -333,7 +457,7 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
             }}
             maskColor="rgba(0, 0, 0, 0.8)"
           />
-          <Panel position="bottom-right" className="bg-white/90 px-3 py-2 rounded-lg text-xs text-slate-700 border border-slate-200 shadow">
+          <Panel position="bottom-right" className="bg-slate-800/90 px-3 py-2 rounded-lg text-xs text-slate-200 border border-slate-700 shadow">
             <div>Models: {totalNodes}</div>
             <div>Relationships: {totalEdges}</div>
             <div>Datasets: {datasetsCount}</div>
