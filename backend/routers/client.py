@@ -147,209 +147,260 @@ async def run_search(query: Query, request: Request):
 
     search_logger.info(f"Running multi-agent workflow for query: {query.query_val}")
 
-    stage_summaries: Dict[str, str] = {}
+    async def stream_response() -> AsyncGenerator[str, None]:
+        """Stream stage status updates, compiler output, then metadata."""
+        stage_summaries: Dict[str, str] = {}
+        status_queue: asyncio.Queue[str | None] = asyncio.Queue()
 
-    # Stage 1: HuggingFace search agent
-    try:
-        hf_result = Runner.run_streamed(
-            starting_agent=hf_search_agent,
-            input=query.query_val,
-        )
-        hf_summary = await _collect_response_text(hf_result)
-        stage_summaries["huggingface_initial"] = hf_summary
-    except Exception as e:
-        search_logger.error(f"HuggingFace search agent failed: {e}")
-        raise
+        async def emit_status(message: str) -> None:
+            """Push a status line to the queue."""
+            await status_queue.put(message + "\n")
 
-    # Stage 2: Neo4j lineage agent (driven by HF result)
-    hf_summary_text = hf_result.final_output_as(str)
-    try:
-        neo4j_result = Runner.run_streamed(
-            starting_agent=neo4j_search_agent,
-            input=hf_summary_text,
-        )
-        neo4j_summary = await _collect_response_text(neo4j_result)
-        stage_summaries["neo4j_lineage"] = neo4j_summary
-    except Exception as e:
-        search_logger.error(f"Neo4j agent failed: {e}")
-        raise
-
-    neo4j_graph = get_tool_result("search_neo4j", request)
-
-    # Fallback: If Neo4j agent didn't call the tool, try extracting model IDs and calling directly
-    if not neo4j_graph:
-        search_logger.warning(
-            "Neo4j agent did not call search_neo4j tool, attempting fallback"
-        )
-        from .search.utils.search_neo4j import search_query as search_neo4j_tool
-
-        # Extract model IDs from HuggingFace summary
-        extracted_model_ids = _extract_model_ids_from_text(hf_summary_text)
-        search_logger.info(
-            f"Extracted model IDs from HF summary: {extracted_model_ids}"
-        )
-
-        if extracted_model_ids:
+        async def run_workflow():
             try:
-                # Try searching with the first model ID
-                first_model_id = extracted_model_ids[0]
-                search_logger.info(
-                    f"Calling search_neo4j directly with model_id: {first_model_id}"
+                # Stage 1: HuggingFace search agent
+                await emit_status("Stage 1: Running HuggingFace search...")
+                hf_result = Runner.run_streamed(
+                    starting_agent=hf_search_agent,
+                    input=query.query_val,
                 )
-                neo4j_graph = search_neo4j_tool(first_model_id)
-                search_logger.info(
-                    f"Fallback Neo4j search successful, found {len(neo4j_graph.nodes.nodes) if neo4j_graph else 0} nodes"
+                hf_summary = await _collect_response_text(hf_result)
+                stage_summaries["huggingface_initial"] = hf_summary
+                await emit_status("Stage 1 complete.")
+
+                # Stage 2: Neo4j lineage agent
+                await emit_status("Stage 2: Extracting Neo4j lineage...")
+                hf_summary_text = hf_result.final_output_as(str)
+                neo4j_result = Runner.run_streamed(
+                    starting_agent=neo4j_search_agent,
+                    input=hf_summary_text,
                 )
-            except Exception as fallback_error:
-                search_logger.error(f"Fallback Neo4j search failed: {fallback_error}")
+                neo4j_summary = await _collect_response_text(neo4j_result)
+                stage_summaries["neo4j_lineage"] = neo4j_summary
+                await emit_status("Stage 2 complete.")
 
-    model_ids = _extract_model_ids_from_graph(neo4j_graph)
+                neo4j_graph = get_tool_result("search_neo4j", request)
 
-    dataset_task = None
-    hf_followup_task = None
+                # Fallback: If Neo4j agent didn't call the tool, try extracting model IDs and calling directly
+                if not neo4j_graph:
+                    search_logger.warning(
+                        "Neo4j agent did not call search_neo4j tool, attempting fallback"
+                    )
+                    from .search.utils.search_neo4j import (
+                        search_query as search_neo4j_tool,
+                    )
 
-    # Stage 3: Arxiv dataset extraction agent (uses new tooling)
-    if model_ids:
-        dataset_payload = json.dumps(
-            {
-                "instruction": "Extract training datasets from arxiv papers for these HuggingFace models.",
-                "model_ids": model_ids,
-                "notes": "Always call extract_training_datasets with the provided list.",
-            }
-        )
-        dataset_result = Runner.run_streamed(
-            starting_agent=dataset_extractor_agent,
-            input=dataset_payload,
-        )
-        dataset_task = asyncio.create_task(_collect_response_text(dataset_result))
-    else:
-        stage_summaries["dataset_extraction"] = (
-            "No model IDs available to run dataset extraction."
-        )
+                    # Extract model IDs from HuggingFace summary
+                    extracted_model_ids = _extract_model_ids_from_text(hf_summary_text)
+                    search_logger.info(
+                        f"Extracted model IDs from HF summary: {extracted_model_ids}"
+                    )
 
-    # Stage 4: Follow-up HuggingFace pass using Neo4j insights (run concurrently)
-    try:
-        followup_input = neo4j_result.final_output_as(str)
-        hf_followup = Runner.run_streamed(
-            starting_agent=hf_search_agent,
-            input=followup_input,
-        )
-        hf_followup_task = asyncio.create_task(_collect_response_text(hf_followup))
-    except Exception as e:
-        search_logger.warning(f"Follow-up HuggingFace agent failed to start: {e}")
-        stage_summaries["huggingface_followup"] = "Follow-up HuggingFace lookup failed."
+                    if extracted_model_ids:
+                        try:
+                            # Try searching with the first model ID
+                            first_model_id = extracted_model_ids[0]
+                            search_logger.info(
+                                f"Calling search_neo4j directly with model_id: {first_model_id}"
+                            )
+                            neo4j_graph = search_neo4j_tool(first_model_id)
+                            search_logger.info(
+                                f"Fallback Neo4j search successful, found {len(neo4j_graph.nodes.nodes) if neo4j_graph else 0} nodes"
+                            )
+                        except Exception as fallback_error:
+                            search_logger.error(
+                                f"Fallback Neo4j search failed: {fallback_error}"
+                            )
 
-    parallel_tasks: list[tuple[str, asyncio.Task[str]]] = []
-    if dataset_task:
-        parallel_tasks.append(("dataset_extraction", dataset_task))
-    if hf_followup_task:
-        parallel_tasks.append(("huggingface_followup", hf_followup_task))
+                model_ids = _extract_model_ids_from_graph(neo4j_graph)
 
-    if parallel_tasks:
-        results = await asyncio.gather(
-            *(task for _, task in parallel_tasks), return_exceptions=True
-        )
-        for (label, _), result in zip(parallel_tasks, results):
-            if isinstance(result, Exception):
-                if label == "dataset_extraction":
-                    search_logger.error(f"Dataset extractor agent failed: {result}")
-                    stage_summaries[label] = "Dataset extraction failed."
+                dataset_task = None
+                hf_followup_task = None
+
+                # Stage 3: Arxiv dataset extraction agent (uses new tooling)
+                if model_ids:
+                    await emit_status("Stage 3: Extracting training datasets...")
+                    dataset_payload = json.dumps(
+                        {
+                            "instruction": "Extract training datasets from arxiv papers for these HuggingFace models.",
+                            "model_ids": model_ids,
+                            "notes": "Always call extract_training_datasets with the provided list.",
+                        }
+                    )
+                    dataset_result = Runner.run_streamed(
+                        starting_agent=dataset_extractor_agent,
+                        input=dataset_payload,
+                    )
+                    dataset_task = asyncio.create_task(
+                        _collect_response_text(dataset_result)
+                    )
                 else:
-                    search_logger.warning(f"HuggingFace follow-up failed: {result}")
-                    stage_summaries[label] = "Follow-up HuggingFace lookup failed."
-            else:
-                stage_summaries[label] = result or (
-                    "No additional data returned."
-                    if label == "huggingface_followup"
-                    else "Dataset extraction returned no content."
+                    stage_summaries["dataset_extraction"] = (
+                        "No model IDs available to run dataset extraction."
+                    )
+
+                # Stage 4: Follow-up HuggingFace pass using Neo4j insights (run concurrently)
+                try:
+                    followup_input = neo4j_result.final_output_as(str)
+                    await emit_status(
+                        "Stage 4: Running follow-up HuggingFace lookup..."
+                    )
+                    hf_followup = Runner.run_streamed(
+                        starting_agent=hf_search_agent,
+                        input=followup_input,
+                    )
+                    hf_followup_task = asyncio.create_task(
+                        _collect_response_text(hf_followup)
+                    )
+                except Exception as e:
+                    search_logger.warning(
+                        f"Follow-up HuggingFace agent failed to start: {e}"
+                    )
+                    stage_summaries["huggingface_followup"] = (
+                        "Follow-up HuggingFace lookup failed."
+                    )
+
+                parallel_tasks: list[tuple[str, asyncio.Task[str]]] = []
+                if dataset_task:
+                    parallel_tasks.append(("dataset_extraction", dataset_task))
+                if hf_followup_task:
+                    parallel_tasks.append(("huggingface_followup", hf_followup_task))
+
+                if parallel_tasks:
+                    results = await asyncio.gather(
+                        *(task for _, task in parallel_tasks), return_exceptions=True
+                    )
+                    for (label, _), result in zip(parallel_tasks, results):
+                        if isinstance(result, Exception):
+                            if label == "dataset_extraction":
+                                search_logger.error(
+                                    f"Dataset extractor agent failed: {result}"
+                                )
+                                stage_summaries[label] = "Dataset extraction failed."
+                            else:
+                                search_logger.warning(
+                                    f"HuggingFace follow-up failed: {result}"
+                                )
+                                stage_summaries[label] = (
+                                    "Follow-up HuggingFace lookup failed."
+                                )
+                        else:
+                            stage_summaries[label] = result or (
+                                "No additional data returned."
+                                if label == "huggingface_followup"
+                                else "Dataset extraction returned no content."
+                            )
+
+                if dataset_task:
+                    await emit_status("Stage 3 complete.")
+                if hf_followup_task:
+                    await emit_status("Stage 4 complete.")
+
+                training_dataset_map = get_tool_result(
+                    "extract_training_datasets", request
                 )
 
-    training_dataset_map = get_tool_result("extract_training_datasets", request)
+                dataset_risk_context = build_dataset_risk_context(
+                    training_dataset_map
+                    if isinstance(training_dataset_map, dict)
+                    else {}
+                )
 
-    dataset_risk_context = build_dataset_risk_context(
-        training_dataset_map if isinstance(training_dataset_map, dict) else {}
-    )
+                dataset_risk_summary = None
+                if dataset_risk_context.get("models"):
+                    await emit_status("Stage 5: Assessing dataset risk...")
+                    risk_payload = json.dumps(
+                        {
+                            "query": query.query_val,
+                            "risk_context": dataset_risk_context,
+                            "guidance": "Emphasize synthetic/English-only/unknown datasets with clear risk levels.",
+                        }
+                    )
+                    risk_result = Runner.run_streamed(
+                        starting_agent=dataset_risk_agent,
+                        input=risk_payload,
+                    )
+                    dataset_risk_summary = await _collect_response_text(risk_result)
+                    stage_summaries["dataset_risk"] = dataset_risk_summary
+                    await emit_status("Stage 5 complete.")
+                else:
+                    stage_summaries["dataset_risk"] = (
+                        "No training datasets available to assess risk."
+                    )
 
-    dataset_risk_summary = None
-    if dataset_risk_context.get("models"):
-        risk_payload = json.dumps(
-            {
-                "query": query.query_val,
-                "risk_context": dataset_risk_context,
-                "guidance": "Emphasize synthetic/English-only/unknown datasets with clear risk levels.",
-            }
-        )
-        risk_result = Runner.run_streamed(
-            starting_agent=dataset_risk_agent,
-            input=risk_payload,
-        )
-        dataset_risk_summary = await _collect_response_text(risk_result)
-        stage_summaries["dataset_risk"] = dataset_risk_summary
-    else:
-        stage_summaries["dataset_risk"] = (
-            "No training datasets available to assess risk."
-        )
+                neo4j_payload = _serialize_graph_with_datasets(
+                    neo4j_graph,
+                    (
+                        training_dataset_map
+                        if isinstance(training_dataset_map, dict)
+                        else {}
+                    ),
+                )
 
-    neo4j_payload = _serialize_graph_with_datasets(
-        neo4j_graph,
-        training_dataset_map if isinstance(training_dataset_map, dict) else {},
-    )
+                # Prepare metadata to send after streaming
+                metadata_payload: Dict[str, Any] = {
+                    "neo4j_data": neo4j_payload,
+                    "training_datasets": training_dataset_map,
+                    "dataset_risk": dataset_risk_context,
+                    "dataset_risk_summary": dataset_risk_summary,
+                    "models_analyzed": model_ids,
+                    "stage_summaries": stage_summaries,
+                }
 
-    # Prepare metadata to send after streaming
-    metadata_payload: Dict[str, Any] = {
-        "neo4j_data": neo4j_payload,
-        "training_datasets": training_dataset_map,
-        "dataset_risk": dataset_risk_context,
-        "dataset_risk_summary": dataset_risk_summary,
-        "models_analyzed": model_ids,
-        "stage_summaries": stage_summaries,
-    }
+                search_logger.info(
+                    f"Prepared metadata with neo4j_data: {neo4j_payload is not None}, nodes: {neo4j_payload.get('nodes', {}).get('nodes', [])[:2] if neo4j_payload else 'None'}"
+                )
 
-    search_logger.info(
-        f"Prepared metadata with neo4j_data: {neo4j_payload is not None}, nodes: {neo4j_payload.get('nodes', {}).get('nodes', [])[:2] if neo4j_payload else 'None'}"
-    )
+                # Stage 6: Compiler agent synthesizes findings - stream the response
+                compiler_payload = {
+                    "query": query.query_val,
+                    "model_brief": stage_summaries.get("huggingface_initial"),
+                    "neo4j_brief": stage_summaries.get("neo4j_lineage"),
+                    "dataset_highlights": stage_summaries.get("dataset_extraction"),
+                    "risk_notes": stage_summaries.get("dataset_risk"),
+                    "instruction": "Respond with <=6 sentences across two sections: Model Findings and Dependency Watchlist.",
+                }
 
-    # Stage 5: Compiler agent synthesizes findings - stream the response
-    compiler_payload = {
-        "query": query.query_val,
-        "model_brief": stage_summaries.get("huggingface_initial"),
-        "neo4j_brief": stage_summaries.get("neo4j_lineage"),
-        "dataset_highlights": stage_summaries.get("dataset_extraction"),
-        "risk_notes": stage_summaries.get("dataset_risk"),
-        "instruction": "Respond with <=6 sentences across two sections: Model Findings and Dependency Watchlist.",
-    }
+                compiler_input = json.dumps(compiler_payload)
+                await emit_status("Stage 6: Compiling response...")
 
-    compiler_input = json.dumps(compiler_payload)
+                compiled_response = Runner.run_streamed(
+                    starting_agent=compiler_agent,
+                    input=compiler_input,
+                )
 
-    try:
-        compiled_response = Runner.run_streamed(
-            starting_agent=compiler_agent,
-            input=compiler_input,
-        )
+                async for event in compiled_response.stream_events():
+                    if event.type == "raw_response_event" and isinstance(
+                        event.data, ResponseTextDeltaEvent
+                    ):
+                        delta = event.data.delta
+                        if delta:
+                            await status_queue.put(delta)
 
-        async def stream_response() -> AsyncGenerator[str, None]:
-            """Stream text chunks from compiler agent, then send metadata."""
-            async for event in compiled_response.stream_events():
-                if event.type == "raw_response_event" and isinstance(
-                    event.data, ResponseTextDeltaEvent
-                ):
-                    delta = event.data.delta
-                    if delta:
-                        yield delta
+                # After text streaming completes, send metadata as JSON
+                metadata_json = json.dumps(metadata_payload)
+                search_logger.info(
+                    f"Sending metadata JSON (length: {len(metadata_json)}), neo4j_data present: {metadata_payload.get('neo4j_data') is not None}"
+                )
+                await status_queue.put("\n\n<METADATA_START>")
+                await status_queue.put(metadata_json)
+                await status_queue.put("<METADATA_END>")
 
-            # After text streaming completes, send metadata as JSON
-            # Use a special delimiter to separate text from metadata
-            metadata_json = json.dumps(metadata_payload)
-            search_logger.info(
-                f"Sending metadata JSON (length: {len(metadata_json)}), neo4j_data present: {metadata_payload.get('neo4j_data') is not None}"
-            )
-            yield "\n\n<METADATA_START>"
-            yield metadata_json
-            yield "<METADATA_END>"
+            except Exception as e:
+                search_logger.error(f"Workflow failed: {e}")
+                await status_queue.put(f"\n[error] {e}\n")
+            finally:
+                await status_queue.put(None)
 
-        return StreamingResponse(
-            stream_response(), media_type="text/plain; charset=utf-8"
-        )
-    except Exception as e:
-        search_logger.error(f"Compiler agent failed: {e}")
-        raise
+        worker = asyncio.create_task(run_workflow())
+        try:
+            while True:
+                chunk = await status_queue.get()
+                if chunk is None:
+                    break
+                yield chunk
+        finally:
+            if not worker.done():
+                worker.cancel()
+
+    return StreamingResponse(stream_response(), media_type="text/plain; charset=utf-8")
