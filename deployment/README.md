@@ -107,9 +107,18 @@ This will save all the deployment states to a GCP bucket
 pulumi preview --stack dev
 ```
 
-- To build & push images run (This will take a while since we need to build 3 containers):
+- To build & push images run (This will take a while since we need to build 4 containers):
 ```
 pulumi up --stack dev -y
+```
+
+- To build specific containers only:
+```
+# Build only backend
+pulumi up --stack dev --target "urn:pulumi:dev::datadetox-deployment::docker-build:index:Image::build-datadetox-backend"
+
+# Build only frontend
+pulumi up --stack dev --target "urn:pulumi:dev::datadetox-deployment::docker-build:index:Image::build-datadetox-frontend"
 ```
 
 ## Create & Deploy Cluster
@@ -150,6 +159,35 @@ graph LR
     style A fill:#lightgreen
     style N fill:#lightgreen
     style J fill:#orange
+```
+
+### Populating Neo4j database
+1. Default behaivour: Deployment is created but scaled to 0 replicas (no pods running)
+
+2. To use it manually:
+```
+# Scale up the deployment
+kubectl scale deployment/model-lineage --replicas=1 -n datadetox-namespace
+
+# Wait for pod to be ready
+kubectl wait --for=condition=ready pod -l app=model-lineage -n datadetox-namespace
+
+# Exec into the container
+kubectl exec -it deployment/model-lineage -n datadetox-namespace -- bash
+
+# Inside the container, run your scraper
+uv run python lineage_scraper.py --full --limit 1000
+# Or any other command you want
+```
+
+3. When done, scale back down to save resources:
+```
+kubectl scale deployment/model-lineage --replicas=0 -n datadetox-namespace
+```
+
+4. Optional: To run automatically on setup:
+```
+pulumi config set run_model_lineage_on_setup true --stack dev
 ```
 
 ### Try some kubectl commands
