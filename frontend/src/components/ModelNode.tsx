@@ -50,17 +50,11 @@ const ModelNode = memo(({ data }: NodeProps<ModelNodeData>) => {
 
   return (
     <div className="relative">
-      {/* Single handle at top for all connections */}
+      {/* Target handle at top for incoming edges */}
       <Handle
         type="target"
         position={Position.Top}
         className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
-      />
-      <Handle
-        type="source"
-        position={Position.Top}
-        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
-        style={{ top: 0 }}
       />
 
       {/* Main model card */}
@@ -176,6 +170,13 @@ const ModelNode = memo(({ data }: NodeProps<ModelNodeData>) => {
           </div>
         )}
       </div>
+
+      {/* Source handle at bottom for outgoing edges */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+      />
     </div>
   );
 });

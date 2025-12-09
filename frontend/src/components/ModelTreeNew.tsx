@@ -252,17 +252,29 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
           // Use a safer edge ID format to avoid conflicts with model IDs containing hyphens
           const edgeId = `edge_${sourceId}_to_${targetId}`;
           if (!processedEdges.has(edgeId)) {
-            console.log('✅ Creating edge:', edgeId, 'from', sourceId, 'to', targetId, 'with label:', rel.relationship);
+            const relationshipLabel = rel.relationship.replace(/_/g, ' ').toLowerCase();
+            console.log('✅ Creating edge:', edgeId, 'from', sourceId, 'to', targetId, 'with label:', relationshipLabel);
             flowEdges.push({
               id: edgeId,
               source: sourceId,
               target: targetId,
-              label: rel.relationship.replace(/_/g, ' '),
+              label: relationshipLabel,
               type: 'smoothstep',
-              className: 'edge-yellow',
+              animated: false,
               style: { stroke: '#facc15', strokeWidth: 3.5 },
-              labelStyle: { fill: '#1f2937', fontSize: 11, fontWeight: 700 },
-              labelBgStyle: { fill: '#e2e8f0', opacity: 0.9 },
+              labelStyle: {
+                fill: '#1f2937',
+                fontSize: '13px',
+                fontWeight: 700,
+                fontFamily: 'monospace',
+              },
+              labelShowBg: true,
+              labelBgStyle: {
+                fill: '#fef3c7',
+                fillOpacity: 1,
+              },
+              labelBgPadding: [8, 4] as [number, number],
+              labelBgBorderRadius: 4,
             });
             processedEdges.add(edgeId);
           }
@@ -433,6 +445,17 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
             stroke: #facc15 !important;
             stroke-width: 3.5px !important;
             opacity: 1 !important;
+          }
+          /* Ensure edge labels are visible */
+          .react-flow__edge-text {
+            fill: #1f2937 !important;
+            font-size: 13px !important;
+            font-weight: 700 !important;
+            font-family: monospace !important;
+          }
+          .react-flow__edge-textbg {
+            fill: #fef3c7 !important;
+            fill-opacity: 1 !important;
           }
         `}</style>
         <ReactFlow
