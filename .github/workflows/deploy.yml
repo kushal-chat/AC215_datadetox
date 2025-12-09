@@ -1,69 +1,75 @@
-deploy:
-  name: deploy-datadetox
-  runs-on: ubuntu-latest
-  needs: [unit-tests, integration-tests]
-  if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-  env:
-    GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
-    GCP_REGION: ${{ secrets.GCP_REGION }}
-    GCP_ZONE: ${{ secrets.GCP_ZONE }}
-    PULUMI_STACK: ${{ vars.PULUMI_STACK || 'dev' }}
-    PULUMI_BACKEND: ${{ vars.PULUMI_BACKEND || format('gs://{0}-pulumi-state-bucket', secrets.GCP_PROJECT) }}
-    PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-    OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-    HF_TOKEN: ${{ secrets.HF_TOKEN }}
-    NEO4J_URI: ${{ vars.NEO4J_URI || 'bolt://neo4j:7687' }}
-    NEO4J_USER: ${{ vars.NEO4J_USER || 'neo4j' }}
-    NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD || 'password' }}
-  steps:
-    - uses: actions/checkout@v4
+name: deploy-datadetox
 
-    - name: Authenticate to GCP
-      id: auth
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: ${{ secrets.GCP_DEPLOYMENT_SA_KEY }}
-        create_credentials_file: true
-        export_environment_variables: true
+on:
+  push:
+    branches: [main]
 
-    - name: Set up gcloud
-      uses: google-github-actions/setup-gcloud@v2
-      with:
-        project_id: ${{ secrets.GCP_PROJECT }}
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    env:
+      GCP_PROJECT: ${{ secrets.GCP_PROJECT }}
+      GCP_REGION: ${{ secrets.GCP_REGION }}
+      GCP_ZONE: ${{ secrets.GCP_ZONE }}
+      PULUMI_STACK: ${{ vars.PULUMI_STACK || 'dev' }}
+      PULUMI_BACKEND: ${{ vars.PULUMI_BACKEND || format('gs://{0}-pulumi-state-bucket', secrets.GCP_PROJECT) }}
+      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      HF_TOKEN: ${{ secrets.HF_TOKEN }}
+      NEO4J_URI: ${{ vars.NEO4J_URI || 'bolt://neo4j:7687' }}
+      NEO4J_USER: ${{ vars.NEO4J_USER || 'neo4j' }}
+      NEO4J_PASSWORD: ${{ secrets.NEO4J_PASSWORD || 'password' }}
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Configure Artifact Registry auth
-      run: gcloud auth configure-docker ${secrets.GCP_REGION}-docker.pkg.dev --quiet
+      - name: Authenticate to GCP
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_DEPLOYMENT_SA_KEY }}
+          create_credentials_file: true
+          export_environment_variables: true
 
-    - name: Install uv
-      uses: astral-sh/setup-uv@v4
-      with:
-        version: latest
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ secrets.GCP_PROJECT }}
 
-    - name: Install Pulumi CLI
-      uses: pulumi/setup-pulumi@v6
+      - name: Configure Artifact Registry auth
+        run: gcloud auth configure-docker ${GCP_REGION}-docker.pkg.dev --quiet
 
-    - name: Install deployment deps
-      working-directory: deployment
-      run: uv sync --dev
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: latest
 
-    - name: Build & push images (Pulumi)
-      working-directory: deployment/deploy_images
-      env:
-        GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
-      run: |
-        pulumi login "$PULUMI_BACKEND"
-        pulumi stack select "$PULUMI_STACK" --create
-        pulumi config set gcp:project "$GCP_PROJECT" --stack "$PULUMI_STACK"
-        pulumi up --stack "$PULUMI_STACK" -y
+      - name: Install Pulumi CLI
+        uses: pulumi/setup-pulumi@v6
 
-    - name: Deploy to GKE (Pulumi)
-      working-directory: deployment/deploy_k8s
-      env:
-        GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
-      run: |
-        pulumi login "$PULUMI_BACKEND"
-        pulumi stack select "$PULUMI_STACK" --create
-        pulumi config set gcp:project "$GCP_PROJECT" --stack "$PULUMI_STACK"
-        pulumi config set security:gcp_service_account_email "deployment@${GCP_PROJECT}.iam.gserviceaccount.com" --stack "$PULUMI_STACK" --non-interactive
-        pulumi config set security:gcp_ksa_service_account_email "gcp-service@${GCP_PROJECT}.iam.gserviceaccount.com" --stack "$PULUMI_STACK" --non-interactive
-        pulumi up --stack "$PULUMI_STACK" --refresh -y
+      - name: Install deployment deps
+        working-directory: deployment
+        run: uv sync --dev
+
+      - name: Build & push images (Pulumi)
+        working-directory: deployment/deploy_images
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+        run: |
+          pulumi login "$PULUMI_BACKEND"
+          pulumi stack select "$PULUMI_STACK" --create
+          pulumi config set gcp:project "$GCP_PROJECT" --stack "$PULUMI_STACK"
+          pulumi up --stack "$PULUMI_STACK" -y
+
+      - name: Deploy to GKE (Pulumi)
+        working-directory: deployment/deploy_k8s
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ steps.auth.outputs.credentials_file_path }}
+        run: |
+          pulumi login "$PULUMI_BACKEND"
+          pulumi stack select "$PULUMI_STACK" --create
+          pulumi config set gcp:project "$GCP_PROJECT" --stack "$PULUMI_STACK"
+          pulumi config set security:gcp_service_account_email "deployment@${GCP_PROJECT}.iam.gserviceaccount.com" --stack "$PULUMI_STACK" --non-interactive
+          pulumi config set security:gcp_ksa_service_account_email "gcp-service@${GCP_PROJECT}.iam.gserviceaccount.com" --stack "$PULUMI_STACK" --non-interactive
+          pulumi up --stack "$PULUMI_STACK" --refresh -y
