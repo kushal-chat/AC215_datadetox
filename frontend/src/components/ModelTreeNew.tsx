@@ -254,28 +254,32 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
           if (!processedEdges.has(edgeId)) {
             const relationshipLabel = rel.relationship.replace(/_/g, ' ').toLowerCase();
             console.log('✅ Creating edge:', edgeId, 'from', sourceId, 'to', targetId, 'with label:', relationshipLabel);
-            flowEdges.push({
+            const edgeObject = {
               id: edgeId,
               source: sourceId,
               target: targetId,
               label: relationshipLabel,
-              type: 'smoothstep',
+              type: 'default',
               animated: false,
-              style: { stroke: '#facc15', strokeWidth: 3.5 },
+              style: {
+                stroke: '#facc15',
+                strokeWidth: 3.5
+              },
               labelStyle: {
                 fill: '#1f2937',
-                fontSize: '13px',
+                fontSize: 13,
                 fontWeight: 700,
                 fontFamily: 'monospace',
               },
               labelShowBg: true,
               labelBgStyle: {
                 fill: '#fef3c7',
-                fillOpacity: 1,
               },
               labelBgPadding: [8, 4] as [number, number],
               labelBgBorderRadius: 4,
-            });
+            };
+            console.log('Edge object with label:', edgeObject);
+            flowEdges.push(edgeObject);
             processedEdges.add(edgeId);
           }
         } else {
@@ -467,9 +471,12 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
           maxZoom={2}
           style={{ backgroundColor: '#0f172a' }}
           defaultEdgeOptions={{
-            className: 'edge-yellow',
             style: { strokeWidth: 3.5, stroke: '#facc15' },
+            labelShowBg: true,
+            labelBgStyle: { fill: '#fef3c7' },
           }}
+          edgesUpdatable={false}
+          edgesFocusable={true}
         >
           <Background color="#334155" gap={16} />
           <Controls />
