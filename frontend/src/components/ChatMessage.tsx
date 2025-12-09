@@ -118,7 +118,7 @@ const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatM
         ) : (
           <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words prose-headings:my-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-[2px]">
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {message.replace(/\n{3,}/g, '\n\n')}
+              {message.replace(/^-\s*\n/gm, '').replace(/\n{3,}/g, '\n\n')}
             </ReactMarkdown>
           </div>
         )}

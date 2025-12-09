@@ -46,6 +46,7 @@ const Hero = () => {
               size="lg"
               variant="outline"
               className="text-lg px-8 py-6 border-2"
+              onClick={() => window.open('https://github.com/kushal-chat/AC215_datadetox/', '_blank', 'noopener,noreferrer')}
             >
               View Documentation
             </Button>
