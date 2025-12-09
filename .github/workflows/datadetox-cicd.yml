@@ -36,9 +36,10 @@ jobs:
         run: |
           uv run pytest tests/ -v \
             --cov=routers \
+            --cov=main \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=50
+            --cov-fail-under=60
 
       - name: Upload backend coverage report
         uses: actions/upload-artifact@v4
@@ -58,9 +59,10 @@ jobs:
             --cov=graph \
             --cov=scrapers \
             --cov=storage \
+            --cov=lineage_scraper \
             --cov-report=term-missing \
             --cov-report=xml:coverage.xml \
-            --cov-fail-under=50
+            --cov-fail-under=60
 
       - name: Upload model-lineage coverage report
         uses: actions/upload-artifact@v4
@@ -72,3 +74,21 @@ jobs:
         working-directory: ./backend
         run: |
           uv run black --check .
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: |
+          npm ci
+
+      - name: Run frontend tests
+        working-directory: ./frontend
+        run: |
+          npm test -- --run --coverage
+        env:
+          CI: true
+
+      - name: Upload frontend coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage-report
+          path: frontend/coverage/

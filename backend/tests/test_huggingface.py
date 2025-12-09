@@ -253,3 +253,118 @@ def test_search_huggingface_calls_helpers(monkeypatch: pytest.MonkeyPatch) -> No
 
     assert "user/llama" in result_str
     assert "Models Found" in result_str
+
+
+# ---------- Additional tests for missing coverage ----------
+
+
+def test_get_model_card_404_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test get_model_card with 404 HTTP error."""
+    from huggingface_hub.utils import HfHubHTTPError
+
+    class HfHubHTTPError404(HfHubHTTPError):
+        def __init__(self):
+            super().__init__("Not found")
+            self.response = types.SimpleNamespace(status_code=404)
+
+    def fake_model_info(model_id: str):
+        raise HfHubHTTPError404()
+
+    monkeypatch.setattr(
+        huggingface.hf_api, "model_info", fake_model_info, raising=False
+    )
+
+    result = huggingface.get_model_card("nonexistent/model")
+    assert result is None
+
+
+def test_get_model_card_other_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test get_model_card with other HTTP errors."""
+    from huggingface_hub.utils import HfHubHTTPError
+
+    class HfHubHTTPError500(HfHubHTTPError):
+        def __init__(self):
+            super().__init__("Server error")
+            self.response = types.SimpleNamespace(status_code=500)
+
+    def fake_model_info(model_id: str):
+        raise HfHubHTTPError500()
+
+    monkeypatch.setattr(
+        huggingface.hf_api, "model_info", fake_model_info, raising=False
+    )
+
+    result = huggingface.get_model_card("error/model")
+    assert result is None
+
+
+def test_get_dataset_card_404_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test get_dataset_card with 404 HTTP error."""
+    from huggingface_hub.utils import HfHubHTTPError
+
+    class HfHubHTTPError404(HfHubHTTPError):
+        def __init__(self):
+            super().__init__("Not found")
+            self.response = types.SimpleNamespace(status_code=404)
+
+    def fake_dataset_info(dataset_id: str):
+        raise HfHubHTTPError404()
+
+    monkeypatch.setattr(
+        huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False
+    )
+
+    result = huggingface.get_dataset_card("nonexistent/dataset")
+    assert result is None
+
+
+def test_get_dataset_card_other_http_error(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test get_dataset_card with other HTTP errors."""
+    from huggingface_hub.utils import HfHubHTTPError
+
+    class HfHubHTTPError500(HfHubHTTPError):
+        def __init__(self):
+            super().__init__("Server error")
+            self.response = types.SimpleNamespace(status_code=500)
+
+    def fake_dataset_info(dataset_id: str):
+        raise HfHubHTTPError500()
+
+    monkeypatch.setattr(
+        huggingface.hf_api, "dataset_info", fake_dataset_info, raising=False
+    )
+
+    result = huggingface.get_dataset_card("error/dataset")
+    assert result is None
+
+
+def test_format_search_results_with_datasets(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test format_search_results with datasets."""
+    models = []
+    datasets = [
+        {
+            "id": "user/dataset1",
+            "author": "author1",
+            "downloads": 1000,
+            "likes": 5,
+            "tags": ["tag1", "tag2", "tag3"],
+            "url": "https://huggingface.co/datasets/user/dataset1",
+        }
+    ]
+
+    result = huggingface.format_search_results(models, datasets)
+
+    assert "Datasets Found" in result
+    assert "user/dataset1" in result
+    assert "author1" in result
+    assert "1,000" in result  # Formatted number
+
+
+def test_format_search_results_empty(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Test format_search_results with no results."""
+    models = []
+    datasets = []
+
+    result = huggingface.format_search_results(models, datasets)
+
+    assert "No results found on HuggingFace Hub." in result

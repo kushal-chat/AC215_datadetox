@@ -4,7 +4,10 @@ from __future__ import annotations
 
 
 from hypothesis import given, strategies as st
-
+from unittest.mock import MagicMock, patch
+from routers.search.utils.search_neo4j import (
+    _log_query_summary,
+)
 from routers.search.utils.search_neo4j import (
     HFModel,
     HFDataset,
@@ -220,3 +223,29 @@ def test_parse_node_invalid(invalid_data: dict) -> None:
 
     result = _parse_node(invalid_data, HFModel)
     assert result is None
+
+
+@patch("routers.search.utils.search_neo4j.logger")
+def test_log_query_summary(mock_logger):
+    """Test _log_query_summary function."""
+    mock_summary = MagicMock()
+    mock_summary.query = "MATCH (n) RETURN n"
+    mock_summary.result_available_after = 15
+
+    _log_query_summary(mock_summary, 5)
+
+    mock_logger.info.assert_called_once()
+    call_args = mock_logger.info.call_args[0][0]
+    assert "5 records" in call_args
+    assert "15 ms" in call_args
+
+
+def test_make_entity_raises_value_error():
+    """Test _make_entity raises ValueError for invalid data."""
+    invalid_data = {"invalid": "data"}
+
+    try:
+        _make_entity(invalid_data)
+        assert False, "Should have raised ValueError"
+    except ValueError as e:
+        assert "Cannot determine entity type" in str(e)

@@ -29,7 +29,7 @@
     - [X] Use Pulumi to automate the provisioning and deployment of your infrastructure (e.g., Kubernetes cluster, networking, storage, configurations, etc.) and application.
 - [ ] CI/CD Pipeline Implementation (GitHub Actions):
     - [ ] Set up a CI/CD pipeline using GitHub Actions. The pipeline should:
-        - [ ] Have a unit test suite for each service/container.
+        - [X] Have a unit test suite for each service/container.
         - [ ] Run integration tests on the code base .
         - [ ] Deploy updates to the Kubernetes cluster upon merging changes into the main branch.
         - [ ] Achieve at least 60% line coverage. Document which functions and modules are not covered by tests.
