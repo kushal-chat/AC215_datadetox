@@ -207,9 +207,7 @@ jobs:
           version: latest
 
       - name: Install Pulumi CLI
-        uses: pulumi/actions@v5
-        with:
-          command: version
+        uses: pulumi/actions@v4
 
       - name: Install deployment deps
         working-directory: deployment
