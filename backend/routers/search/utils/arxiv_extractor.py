@@ -365,7 +365,7 @@ class ArxivDatasetExtractor:
         self.paper_parser = ArxivPaperParser()
 
     async def extract_for_models(
-        self, model_ids: List[str], max_concurrent: int = 5
+        self, model_ids: List[str], max_concurrent: int = 8
     ) -> Dict[str, ModelPaperInfo]:
         """
         Extract dataset information from arxiv papers for multiple models.

@@ -2,6 +2,7 @@
 
 import os
 import logging
+import re
 from typing import Optional, Dict, List
 from huggingface_hub import HfApi
 from huggingface_hub.utils import HfHubHTTPError
@@ -15,6 +16,13 @@ hf_api = HfApi(token=hf_token)
 # Cache for dataset existence checks to avoid repeated API calls
 _dataset_cache: Dict[str, bool] = {}
 
+_VALID_DATASET_ID = re.compile(r"^[\w\-.]+(/[\w\-.]+)?$")
+
+
+def _looks_like_dataset_id(dataset_id: str) -> bool:
+    """Return True if the string looks like a valid HuggingFace dataset identifier."""
+    return bool(_VALID_DATASET_ID.match(dataset_id))
+
 
 def check_dataset_exists(dataset_id: str) -> bool:
     """
@@ -26,6 +34,11 @@ def check_dataset_exists(dataset_id: str) -> bool:
     Returns:
         True if dataset exists, False otherwise
     """
+    # Basic sanity check: HuggingFace dataset ids cannot contain whitespace
+    if not _looks_like_dataset_id(dataset_id):
+        logger.debug(f"Dataset id '{dataset_id}' is not a valid HuggingFace identifier")
+        return False
+
     # Check cache first
     if dataset_id in _dataset_cache:
         return _dataset_cache[dataset_id]
@@ -40,12 +53,11 @@ def check_dataset_exists(dataset_id: str) -> bool:
             _dataset_cache[dataset_id] = False
             logger.debug(f"Dataset not found: {dataset_id}")
             return False
-        # For other errors, assume it exists to avoid false negatives
-        logger.warning(f"Error checking dataset {dataset_id}: {e}")
-        return True
+        logger.warning(f"HTTP error checking dataset {dataset_id}: {e}")
+        return False
     except Exception as e:
         logger.warning(f"Error checking dataset {dataset_id}: {e}")
-        return True  # Assume exists on error
+        return False
 
 
 # Well-known dataset mappings (dataset name -> HuggingFace ID)

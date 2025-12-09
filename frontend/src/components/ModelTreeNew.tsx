@@ -13,7 +13,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import { Card, CardContent } from '@/components/ui/card';
 import { GitBranch } from 'lucide-react';
-import ModelNode, { ModelNodeData, DatasetInfo } from './ModelNode';
+import ModelNode, { ModelNodeData, DatasetInfo, DatasetRiskLevel } from './ModelNode';
 import { useGraphLayout } from '@/hooks/useGraphLayout';
 
 interface Neo4jNode {
@@ -52,8 +52,23 @@ interface Neo4jData {
   queried_model_id?: string;
 }
 
+interface DatasetRiskEntry {
+  model_id: string;
+  arxiv_url?: string;
+  datasets: Array<{
+    name: string;
+    risk_level?: DatasetRiskLevel;
+    indicators?: string[];
+  }>;
+}
+
+export interface DatasetRiskContext {
+  models?: DatasetRiskEntry[];
+}
+
 interface ModelTreeProps {
   neo4jData: Neo4jData | null;
+  datasetRisk?: DatasetRiskContext | null;
 }
 
 const nodeTypes = {
@@ -68,9 +83,23 @@ const getNodeId = (node: Neo4jNode): string => {
 // Build datasets for each model
 const buildModelDatasets = (
   nodes: Neo4jNode[],
-  relationships: Neo4jRelationship[]
+  relationships: Neo4jRelationship[],
+  datasetRisk?: DatasetRiskContext | null,
 ): Map<string, DatasetInfo[]> => {
   const modelDatasets = new Map<string, DatasetInfo[]>();
+  const riskLookup = new Map<string, Map<string, { risk_level?: DatasetRiskLevel; indicators?: string[] }>>();
+
+  datasetRisk?.models?.forEach(model => {
+    const key = model.model_id.toLowerCase();
+    const datasetMap = new Map<string, { risk_level?: DatasetRiskLevel; indicators?: string[] }>();
+    model.datasets.forEach(ds => {
+      datasetMap.set(ds.name.toLowerCase(), {
+        risk_level: ds.risk_level || 'unknown',
+        indicators: ds.indicators,
+      });
+    });
+    riskLookup.set(key, datasetMap);
+  });
 
   // Process neo4j dataset relationships
   relationships.forEach(rel => {
@@ -97,11 +126,13 @@ const buildModelDatasets = (
   // Merge arxiv-extracted datasets
   nodes.forEach(node => {
     const modelId = getNodeId(node);
+    const modelRiskMap = riskLookup.get(modelId.toLowerCase());
     if (node.training_datasets && node.training_datasets.datasets.length > 0) {
       if (!modelDatasets.has(modelId)) {
         modelDatasets.set(modelId, []);
       }
       node.training_datasets.datasets.forEach(dataset => {
+        const riskMeta = modelRiskMap?.get(dataset.name.toLowerCase());
         modelDatasets.get(modelId)!.push({
           id: dataset.name,
           url: dataset.url,
@@ -109,6 +140,8 @@ const buildModelDatasets = (
           source: 'arxiv',
           arxiv_url: node.training_datasets!.arxiv_url || undefined,
           description: dataset.description,
+          riskLevel: riskMeta?.risk_level || 'unknown',
+          indicators: riskMeta?.indicators,
         });
       });
     }
@@ -117,25 +150,38 @@ const buildModelDatasets = (
   return modelDatasets;
 };
 
-const ModelTreeFlowInner = ({ neo4jData }: ModelTreeProps) => {
+const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
   const { fitView } = useReactFlow();
   const { getLayoutedElements } = useGraphLayout();
   const [nodes, setNodes] = useState<Node<ModelNodeData>[]>([]);
   const [edges, setEdges] = useState<Edge[]>([]);
 
   useEffect(() => {
+    console.log("ModelTree useEffect triggered with neo4jData:", neo4jData, "datasetRisk:", datasetRisk);
     if (!neo4jData || !neo4jData.nodes?.nodes || neo4jData.nodes.nodes.length === 0) {
+      console.log("No neo4jData or empty nodes, clearing tree");
       setNodes([]);
       setEdges([]);
       return;
     }
 
-    const models = neo4jData.nodes.nodes.filter(n => n.model_id);
     const relationships = neo4jData.relationships?.relationships || [];
+
+    // Only keep models that participate in at least one model↔model relationship
+    const relatedModelIds = new Set<string>();
+    relationships.forEach(rel => {
+      if (rel.source.model_id && rel.target.model_id) {
+        relatedModelIds.add(rel.source.model_id);
+        relatedModelIds.add(rel.target.model_id);
+      }
+    });
+
+    const models = neo4jData.nodes.nodes.filter(n => n.model_id && relatedModelIds.has(n.model_id));
+    const modelIdSet = new Set(models.map(m => m.model_id!));
     const queriedModelId = neo4jData.queried_model_id || models[0]?.model_id;
 
     // Build dataset information
-    const modelDatasets = buildModelDatasets(models, relationships);
+    const modelDatasets = buildModelDatasets(models, relationships, datasetRisk);
 
     // Convert to react-flow nodes
     const flowNodes: Node<ModelNodeData>[] = models.map(node => {
@@ -160,7 +206,7 @@ const ModelTreeFlowInner = ({ neo4jData }: ModelTreeProps) => {
           datasets: datasets,
         },
         position: { x: 0, y: 0 }, // Will be set by layout
-        width: 250,
+        width: 280,  // Increased from 250 to 280 for better spacing
         height: totalHeight,
       };
     });
@@ -176,7 +222,7 @@ const ModelTreeFlowInner = ({ neo4jData }: ModelTreeProps) => {
       const targetIsModel = rel.target.model_id;
 
       // Only model-to-model relationships
-      if (sourceIsModel && targetIsModel) {
+      if (sourceIsModel && targetIsModel && modelIdSet.has(sourceId) && modelIdSet.has(targetId)) {
         const edgeId = `${sourceId}-${targetId}`;
         if (!processedEdges.has(edgeId)) {
           flowEdges.push({
@@ -194,12 +240,18 @@ const ModelTreeFlowInner = ({ neo4jData }: ModelTreeProps) => {
       }
     });
 
+    // Adaptive spacing: scale out mildly as the graph grows to avoid overlaps
+    const nodeCount = flowNodes.length || 1;
+    const densityScale = Math.min(2, Math.max(1, nodeCount / 8)); // start scaling after ~8 nodes
+    const nodeSpacing = 120 * densityScale;
+    const layerSpacing = 120 * densityScale;
+
     // Apply automatic layout
-    console.log('Applying layout to', flowNodes.length, 'nodes and', flowEdges.length, 'edges');
+    console.log('Applying layout to', flowNodes.length, 'nodes and', flowEdges.length, 'edges', 'spacing', nodeSpacing, layerSpacing);
     getLayoutedElements(flowNodes, flowEdges, {
       direction: 'UP',  // Upstream at top, downstream at bottom
-      nodeSpacing: 100,
-      layerSpacing: 120,
+      nodeSpacing,
+      layerSpacing,
     }).then(({ nodes: layoutedNodes, edges: layoutedEdges }) => {
       console.log('Layout complete. First node position:', layoutedNodes[0]?.position);
       setNodes(layoutedNodes);
@@ -216,7 +268,7 @@ const ModelTreeFlowInner = ({ neo4jData }: ModelTreeProps) => {
       setNodes(fallbackNodes);
       setEdges(flowEdges);
     });
-  }, [neo4jData, getLayoutedElements, fitView]);
+  }, [neo4jData, datasetRisk, getLayoutedElements, fitView]);
 
   const totalNodes = nodes.length;
   const totalEdges = edges.length;

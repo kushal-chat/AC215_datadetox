@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import Navbar from "@/components/Navbar";
 import ChatMessage from "@/components/ChatMessage";
-import ModelTree from "@/components/ModelTreeNew";
+import ModelTree, { DatasetRiskContext } from "@/components/ModelTreeNew";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,6 +53,12 @@ interface Message {
   neo4jData?: Neo4jData;
 }
 
+interface SearchResponse {
+  result?: string;
+  neo4j_data?: Neo4jData | null;
+  dataset_risk?: DatasetRiskContext | null;
+}
+
 const Chatbot = () => {
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -65,6 +71,7 @@ const Chatbot = () => {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [latestNeo4jData, setLatestNeo4jData] = useState<Neo4jData | null>(null);
+  const [datasetRisk, setDatasetRisk] = useState<DatasetRiskContext | null>(null);
   const [leftWidth, setLeftWidth] = useState(50); // Percentage
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -98,7 +105,7 @@ const Chatbot = () => {
     const startTime = Date.now();
 
     try {
-      // Call the backend API
+      // Call the backend API with streaming
       const apiUrl = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000';
       const response = await fetch(`${apiUrl}/flow/search`, {
         method: 'POST',
@@ -112,40 +119,222 @@ const Chatbot = () => {
         throw new Error(`API error: ${response.statusText}`);
       }
 
-      const data = await response.json();
-      const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
-
-      // Remove thinking message
-      setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
-
+      // Create AI message for streaming (keep thinking message until first chunk)
+      const aiMessageId = (Date.now() + 2).toString();
       const aiMessage: Message = {
-        id: (Date.now() + 2).toString(),
-        text: data.result || "I couldn't find information about that.",
+        id: aiMessageId,
+        text: "",
         isUser: false,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         metadata: {
           searchTerms: query,
-          stageTimes: {
-            total: parseFloat(totalTime),
-          },
         },
-        neo4jData: data.neo4j_data, // Attach Neo4j graph data if available
       };
-      setMessages((prev) => [...prev, aiMessage]);
 
-      // Update the latest Neo4j data for the ModelTree visualization
-      if (data.neo4j_data) {
-        setLatestNeo4jData(data.neo4j_data);
-        const nodeCount = data.neo4j_data?.nodes?.nodes?.length || 0;
-        const relCount = data.neo4j_data?.relationships?.relationships?.length || 0;
-        toast.success(`Retrieved ${nodeCount} models and ${relCount} relationships in ${totalTime}s!`);
-      } else {
-        toast.success(`Retrieved information in ${totalTime}s!`);
+      // Stream the response
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedText = "";
+      let metadataBuffer = "";
+      let inMetadata = false;
+      let firstChunkReceived = false;
+
+      if (!reader) {
+        throw new Error("No response body reader available");
+      }
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          // Remove thinking message if it still exists (stream ended without chunks)
+          if (!firstChunkReceived) {
+            setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
+            // Add empty message if nothing was received
+            setMessages((prev) => [...prev, { ...aiMessage, text: "No response received." }]);
+          }
+
+          // Handle case where stream ends while in metadata
+          if (inMetadata && metadataBuffer) {
+            try {
+              const metadata: SearchResponse = JSON.parse(metadataBuffer);
+              console.log("Parsed metadata (stream end):", metadata);
+              const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMessageId
+                    ? {
+                        ...msg,
+                        metadata: {
+                          ...msg.metadata,
+                          stageTimes: {
+                            total: parseFloat(totalTime),
+                          },
+                        },
+                        neo4jData: metadata.neo4j_data || undefined,
+                      }
+                    : msg
+                )
+              );
+              console.log("Setting Neo4j data (stream end):", metadata.neo4j_data);
+              if (metadata.neo4j_data) {
+                setLatestNeo4jData(metadata.neo4j_data);
+                setDatasetRisk(metadata.dataset_risk || null);
+                const nodeCount = metadata.neo4j_data?.nodes?.nodes?.length || 0;
+                const relCount = metadata.neo4j_data?.relationships?.relationships?.length || 0;
+                toast.success(`Retrieved ${nodeCount} models and ${relCount} relationships in ${totalTime}s!`);
+              } else {
+                console.warn("No neo4j_data in metadata (stream end)");
+                setLatestNeo4jData(null);
+                setDatasetRisk(null);
+                toast.success(`Retrieved information in ${totalTime}s!`);
+              }
+            } catch (e) {
+              console.error("Failed to parse metadata (stream end):", e, "Buffer:", metadataBuffer);
+            }
+          }
+          break;
+        }
+
+        const chunk = decoder.decode(value, { stream: true });
+
+        // Remove thinking message and add AI message on first chunk
+        if (!firstChunkReceived) {
+          firstChunkReceived = true;
+          setMessages((prev) => {
+            const filtered = prev.filter(msg => msg.id !== thinkingId);
+            return [...filtered, aiMessage];
+          });
+        }
+
+        if (inMetadata) {
+          // Check for metadata end delimiter
+          if (chunk.includes("<METADATA_END>")) {
+            const endIndex = chunk.indexOf("<METADATA_END>");
+            metadataBuffer += chunk.substring(0, endIndex);
+
+            // Parse and apply metadata
+            try {
+              const metadata: SearchResponse = JSON.parse(metadataBuffer);
+              console.log("Parsed metadata:", metadata);
+              const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMessageId
+                    ? {
+                        ...msg,
+                        metadata: {
+                          ...msg.metadata,
+                          stageTimes: {
+                            total: parseFloat(totalTime),
+                          },
+                        },
+                        neo4jData: metadata.neo4j_data || undefined,
+                      }
+                    : msg
+                )
+              );
+
+              // Update the latest Neo4j data for the ModelTree visualization
+              console.log("Setting Neo4j data:", metadata.neo4j_data);
+              if (metadata.neo4j_data) {
+                setLatestNeo4jData(metadata.neo4j_data);
+                setDatasetRisk(metadata.dataset_risk || null);
+                const nodeCount = metadata.neo4j_data?.nodes?.nodes?.length || 0;
+                const relCount = metadata.neo4j_data?.relationships?.relationships?.length || 0;
+                toast.success(`Retrieved ${nodeCount} models and ${relCount} relationships in ${totalTime}s!`);
+              } else {
+                console.warn("No neo4j_data in metadata");
+                setLatestNeo4jData(null);
+                setDatasetRisk(null);
+                toast.success(`Retrieved information in ${totalTime}s!`);
+              }
+            } catch (e) {
+              console.error("Failed to parse metadata:", e, "Buffer:", metadataBuffer);
+            }
+            break;
+          } else {
+            metadataBuffer += chunk;
+          }
+        } else {
+          // Check for metadata start delimiter
+          if (chunk.includes("<METADATA_START>")) {
+            const startIndex = chunk.indexOf("<METADATA_START>");
+            accumulatedText += chunk.substring(0, startIndex);
+
+            // Update message with final text before metadata
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === aiMessageId ? { ...msg, text: accumulatedText } : msg
+              )
+            );
+
+            // Start collecting metadata
+            inMetadata = true;
+            const afterStart = chunk.substring(startIndex + "<METADATA_START>".length);
+            if (afterStart.includes("<METADATA_END>")) {
+              // Handle case where both delimiters are in the same chunk
+              const endIndex = afterStart.indexOf("<METADATA_END>");
+              metadataBuffer = afterStart.substring(0, endIndex);
+
+                // Parse and apply metadata immediately
+                try {
+                  const metadata: SearchResponse = JSON.parse(metadataBuffer);
+                  console.log("Parsed metadata (same chunk):", metadata);
+                  const totalTime = ((Date.now() - startTime) / 1000).toFixed(1);
+                  setMessages((prev) =>
+                    prev.map((msg) =>
+                      msg.id === aiMessageId
+                        ? {
+                            ...msg,
+                            metadata: {
+                              ...msg.metadata,
+                              stageTimes: {
+                                total: parseFloat(totalTime),
+                              },
+                            },
+                            neo4jData: metadata.neo4j_data || undefined,
+                          }
+                        : msg
+                    )
+                  );
+                  console.log("Setting Neo4j data (same chunk):", metadata.neo4j_data);
+                  if (metadata.neo4j_data) {
+                    setLatestNeo4jData(metadata.neo4j_data);
+                    setDatasetRisk(metadata.dataset_risk || null);
+                    const nodeCount = metadata.neo4j_data?.nodes?.nodes?.length || 0;
+                    const relCount = metadata.neo4j_data?.relationships?.relationships?.length || 0;
+                    toast.success(`Retrieved ${nodeCount} models and ${relCount} relationships in ${totalTime}s!`);
+                  } else {
+                    console.warn("No neo4j_data in metadata (same chunk)");
+                    setLatestNeo4jData(null);
+                    setDatasetRisk(null);
+                    toast.success(`Retrieved information in ${totalTime}s!`);
+                  }
+                } catch (e) {
+                  console.error("Failed to parse metadata (same chunk):", e, "Buffer:", metadataBuffer);
+                }
+              break;
+            } else {
+              metadataBuffer = afterStart;
+            }
+          } else {
+            accumulatedText += chunk;
+            // Update message incrementally as text streams in (only if message exists)
+            if (firstChunkReceived) {
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === aiMessageId ? { ...msg, text: accumulatedText } : msg
+                )
+              );
+            }
+          }
+        }
       }
     } catch (error) {
       console.error('Error calling backend:', error);
 
-      // Remove thinking message
+      // Remove thinking message if it still exists
       setMessages((prev) => prev.filter(msg => msg.id !== thinkingId));
 
       const errorMessage: Message = {
@@ -268,7 +457,7 @@ const Chatbot = () => {
 
           {/* Right Panel - Model Tree */}
           <div style={{ width: `${100 - leftWidth}%` }} className="flex flex-col">
-            <ModelTree neo4jData={latestNeo4jData} />
+            <ModelTree neo4jData={latestNeo4jData} datasetRisk={datasetRisk} />
           </div>
         </div>
       </div>

@@ -4,6 +4,7 @@ import logging
 from typing import Dict, Any, List
 from agents import function_tool
 from .arxiv_extractor import ArxivDatasetExtractor
+from .dataset_resolver import enrich_dataset_info
 from .tool_state import set_tool_result
 
 logger = logging.getLogger(__name__)
@@ -60,18 +61,20 @@ def extract_training_datasets(model_ids: List[str]) -> Dict[str, Any]:
         results = extractor.extract_sync(model_ids, max_concurrent=5)
 
         # Convert to serializable format
-        output = {}
+        output: Dict[str, Any] = {}
         for model_id, info in results.items():
+            datasets = [
+                {
+                    "name": dataset.name,
+                    "url": dataset.url,
+                    "description": dataset.description,
+                }
+                for dataset in info.datasets
+            ]
+
             output[model_id] = {
                 "arxiv_url": info.arxiv_url,
-                "datasets": [
-                    {
-                        "name": dataset.name,
-                        "url": dataset.url,
-                        "description": dataset.description,
-                    }
-                    for dataset in info.datasets
-                ],
+                "datasets": enrich_dataset_info(datasets),
             }
 
         logger.info(f"Successfully extracted datasets for {len(output)} models")

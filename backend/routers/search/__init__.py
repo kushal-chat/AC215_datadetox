@@ -1,4 +1,10 @@
-from .agent import hf_search_agent, neo4j_search_agent, compiler_agent
+from .agent import (
+    hf_search_agent,
+    neo4j_search_agent,
+    dataset_extractor_agent,
+    dataset_risk_agent,
+    compiler_agent,
+)
 import logging
 from termcolor_dg import logging_basic_color_config
 
@@ -13,4 +19,10 @@ logging.basicConfig(
     format=LOG_FORMAT,
 )
 
-__all__ = ["hf_search_agent", "neo4j_search_agent", "compiler_agent"]
+__all__ = [
+    "hf_search_agent",
+    "neo4j_search_agent",
+    "dataset_extractor_agent",
+    "dataset_risk_agent",
+    "compiler_agent",
+]

@@ -2,6 +2,14 @@ import { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Badge } from '@/components/ui/badge';
 import { ExternalLink, Download, Heart } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+
+export type DatasetRiskLevel = 'low' | 'medium' | 'high' | 'unknown';
 
 export interface DatasetInfo {
   id: string;
@@ -12,6 +20,8 @@ export interface DatasetInfo {
   source?: 'neo4j' | 'arxiv';
   arxiv_url?: string;
   description?: string;
+  riskLevel?: DatasetRiskLevel;
+  indicators?: string[];
 }
 
 export interface ModelNodeData extends Record<string, unknown> {
@@ -69,7 +79,10 @@ const ModelNode = memo(({ data }: NodeProps<ModelNodeData>) => {
         )}
 
         {/* Model name */}
-        <div className={`text-sm font-semibold mb-2 ${isQueried ? 'text-yellow-200' : 'text-white'}`}>
+        <div
+          className={`text-sm font-semibold mb-2 truncate ${isQueried ? 'text-yellow-200' : 'text-white'}`}
+          title={modelName}
+        >
           {modelName}
         </div>
 
@@ -104,29 +117,54 @@ const ModelNode = memo(({ data }: NodeProps<ModelNodeData>) => {
           <div className="mt-3 pt-3 border-t border-gray-700 space-y-1">
             {datasets.map((dataset, idx) => {
               const linkUrl = dataset.url || dataset.arxiv_url;
+              const isTruncated = dataset.id.length > 25;
+              const displayId = isTruncated ? `${dataset.id.substring(0, 25)}...` : dataset.id;
+              const riskTone = (() => {
+                switch (dataset.riskLevel) {
+                  case 'high':
+                    return 'bg-red-900/70 border-red-500 text-red-100 hover:bg-red-900';
+                  case 'medium':
+                    return 'bg-amber-900/60 border-amber-500 text-amber-100 hover:bg-amber-900/70';
+                  case 'low':
+                    return 'bg-emerald-900/50 border-emerald-500 text-emerald-100 hover:bg-emerald-900/70';
+                  default:
+                    return dataset.source === 'arxiv'
+                      ? 'bg-purple-900/50 border-purple-700 text-purple-200 hover:bg-purple-800/60'
+                      : 'bg-gray-700/50 border-gray-500 text-gray-300 hover:bg-gray-600/60';
+                }
+              })();
               return (
-                <div
-                  key={idx}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (linkUrl) {
-                      window.open(linkUrl, '_blank', 'noopener,noreferrer');
-                    }
-                  }}
-                  className={`
-                    text-[10px] px-2 py-1 rounded truncate transition-all
-                    ${dataset.source === 'arxiv'
-                      ? 'bg-purple-900/50 text-purple-200 border border-purple-700 hover:bg-purple-800/60'
-                      : 'bg-gray-700/50 text-gray-300 hover:bg-gray-600/60'
-                    }
-                    ${linkUrl ? 'cursor-pointer' : 'cursor-default'}
-                  `}
-                  title={`${dataset.id}${linkUrl ? '\nClick to open' : ''}`}
-                >
-                  {dataset.source === 'arxiv' && '📄 '}
-                  {dataset.id.length > 25 ? `${dataset.id.substring(0, 25)}...` : dataset.id}
-                  {linkUrl && ' ↗'}
-                </div>
+                <TooltipProvider key={idx} delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (linkUrl) {
+                            window.open(linkUrl, '_blank', 'noopener,noreferrer');
+                          }
+                        }}
+                        className={`
+                          text-[10px] px-2 py-1 rounded truncate transition-all border
+                          ${riskTone}
+                          ${linkUrl ? 'cursor-pointer' : 'cursor-default'}
+                        `}
+                        title=""
+                      >
+                        {dataset.source === 'arxiv' && '📄 '}
+                        {dataset.riskLevel === 'high' && '⚠ '}
+                        {displayId}
+                        {linkUrl && ' ↗'}
+                      </div>
+                    </TooltipTrigger>
+                    {isTruncated && (
+                      <TooltipContent side="top" align="start" className="max-w-xs text-xs">
+                        <div className="font-semibold mb-1">{dataset.id}</div>
+                        {dataset.description && <div className="text-slate-200">{dataset.description}</div>}
+                      </TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               );
             })}
           </div>
