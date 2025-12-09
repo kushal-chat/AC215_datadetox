@@ -50,11 +50,17 @@ const ModelNode = memo(({ data }: NodeProps<ModelNodeData>) => {
 
   return (
     <div className="relative">
-      {/* Single connection handle */}
+      {/* Single handle at top for all connections */}
       <Handle
         type="target"
         position={Position.Top}
         className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        className="!bg-blue-500 !w-3 !h-3 !border-2 !border-white"
+        style={{ top: 0 }}
       />
 
       {/* Main model card */}
