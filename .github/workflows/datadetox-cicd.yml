@@ -246,4 +246,4 @@ jobs:
           pulumi config set gcp:project "$GCP_PROJECT" --stack "$PULUMI_STACK"
           pulumi config set security:gcp_service_account_email "deployment@${GCP_PROJECT}.iam.gserviceaccount.com" --stack "$PULUMI_STACK" --non-interactive
           pulumi config set security:gcp_ksa_service_account_email "gcp-service@${GCP_PROJECT}.iam.gserviceaccount.com" --stack "$PULUMI_STACK" --non-interactive
-          pulumi up --stack "$PULUMI_STACK" --refresh -y
+          PULUMI_K8S_CLIENT_SIDE_APPLY_ENABLED=true pulumi up --stack "$PULUMI_STACK" --refresh -y
