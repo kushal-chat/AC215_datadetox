@@ -137,125 +137,179 @@ def _make_entity(node_dict: dict) -> HFModel | HFDataset:
     raise ValueError(f"Cannot determine entity type from: {node_dict}")
 
 
-@function_tool
-def search_query(model_id: str) -> HFGraphData:
-    """Get lineage tree for a given model: queried model + prioritized upstreams + capped downstreams (max 10 related)."""
-    logger.info(f"Searching Neo4j for model: {model_id}")
+def search_query_impl(model_id: str) -> HFGraphData:
+    """Implementation of search_query that handles both models and datasets (non-decorated for direct calls)."""
+    logger.info(f"Searching Neo4j for model or dataset: {model_id}")
     MAX_RELATED = 10  # cap related models to avoid overly large trees
 
-    # First, get the queried model itself
-    root_query = """
+    # First, try to find as Model
+    model_query = """
         MATCH (root:Model {model_id: $model_id})
         RETURN root
     """
     root_res, _, _ = driver.execute_query(
-        root_query,
+        model_query,
         model_id=model_id,
         routing_=neo4j.RoutingControl.READ,
     )
 
+    is_dataset = False
     if not root_res:
-        logger.warning(f"Model {model_id} not found in Neo4j")
+        # Try as Dataset
+        dataset_query = """
+            MATCH (root:Dataset {dataset_id: $model_id})
+            RETURN root
+        """
+        root_res, _, _ = driver.execute_query(
+            dataset_query,
+            model_id=model_id,
+            routing_=neo4j.RoutingControl.READ,
+        )
+        is_dataset = True
+
+    if not root_res:
+        logger.warning(f"Model or dataset {model_id} not found in Neo4j")
         return HFGraphData(
             nodes=HFNodes(nodes=[]),
             relationships=HFRelationships(relationships=[]),
         )
 
     root_node_dict = root_res[0].data()["root"]
-    root_model = _make_entity(root_node_dict)
-    if not isinstance(root_model, HFModel):
-        logger.error(f"Root node {model_id} is not a Model")
+    root_entity = _make_entity(root_node_dict)
+    if not isinstance(root_entity, (HFModel, HFDataset)):
+        logger.error(f"Root node {model_id} is neither a Model nor a Dataset")
         return HFGraphData(
             nodes=HFNodes(nodes=[]),
             relationships=HFRelationships(relationships=[]),
         )
 
-    # Get upstream models first (consume most of the limit)
-    # Direction: queried_model -> upstream (OUTGOING relationships from queried model to its bases)
-    upstream_query = """
-        MATCH (root:Model {model_id: $model_id})-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]->(upstream:Model)
-        RETURN upstream, type(r) as rel_type
-        ORDER BY upstream.downloads DESC
-        LIMIT $limit
-    """
-    upstream_res, _, _ = driver.execute_query(
-        upstream_query,
-        model_id=model_id,
-        limit=MAX_RELATED,
-        routing_=neo4j.RoutingControl.READ,
-    )
+    upstream_res = []
+    downstream_res = []
 
-    # Remaining budget for downstream (downstream -> queried_model, derivatives of queried model)
-    remaining_budget = max(0, MAX_RELATED - len(upstream_res))
-    if remaining_budget > 0:
+    if is_dataset:
+        # For datasets: find models that were TRAINED_ON this dataset
+        # These are "downstream" from the dataset perspective (models that use the dataset)
         downstream_query = """
-            MATCH (root:Model {model_id: $model_id})<-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]-(downstream:Model)
-            RETURN downstream, type(r) as rel_type
-            ORDER BY downstream.downloads DESC
+            MATCH (root:Dataset {dataset_id: $model_id})<-[r:TRAINED_ON]-(model:Model)
+            RETURN model as downstream, type(r) as rel_type
+            ORDER BY model.downloads DESC
             LIMIT $limit
         """
         downstream_res, _, _ = driver.execute_query(
             downstream_query,
             model_id=model_id,
-            limit=remaining_budget,
+            limit=MAX_RELATED,
+            routing_=neo4j.RoutingControl.READ,
+        )
+        # Datasets typically don't have upstream relationships, but check anyway
+        # Match any upstream node (Model or Dataset)
+        upstream_query = """
+            MATCH (root:Dataset {dataset_id: $model_id})-[r]->(upstream)
+            RETURN upstream, type(r) as rel_type
+            ORDER BY COALESCE(upstream.downloads, 0) DESC
+            LIMIT $limit
+        """
+        upstream_res, _, _ = driver.execute_query(
+            upstream_query,
+            model_id=model_id,
+            limit=MAX_RELATED,
             routing_=neo4j.RoutingControl.READ,
         )
     else:
-        downstream_res = []
+        # For models: existing logic for model-to-model relationships
+        # Get upstream models/datasets first (consume most of the limit)
+        # Match any upstream node (Model or Dataset) - filter in Python
+        upstream_query = """
+            MATCH (root:Model {model_id: $model_id})-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]->(upstream)
+            RETURN upstream, type(r) as rel_type
+            ORDER BY COALESCE(upstream.downloads, 0) DESC
+            LIMIT $limit
+        """
+        upstream_res, _, _ = driver.execute_query(
+            upstream_query,
+            model_id=model_id,
+            limit=MAX_RELATED,
+            routing_=neo4j.RoutingControl.READ,
+        )
+
+        # Remaining budget for downstream (downstream -> queried_model, derivatives of queried model)
+        remaining_budget = max(0, MAX_RELATED - len(upstream_res))
+        if remaining_budget > 0:
+            downstream_query = """
+                MATCH (root:Model {model_id: $model_id})<-[r:BASED_ON|FINE_TUNED|FINETUNED|ADAPTERS|MERGES|QUANTIZATIONS|TRAINED_ON]-(downstream:Model)
+                RETURN downstream, type(r) as rel_type
+                ORDER BY downstream.downloads DESC
+                LIMIT $limit
+            """
+            downstream_res, _, _ = driver.execute_query(
+                downstream_query,
+                model_id=model_id,
+                limit=remaining_budget,
+                routing_=neo4j.RoutingControl.READ,
+            )
 
     def _ensure_entity(node: HFModel | HFDataset | dict) -> HFModel | HFDataset:
         if isinstance(node, (HFModel, HFDataset)):
             return node
         return _make_entity(node)
 
-    # Collect all nodes (use dict to avoid duplicates based on model_id)
-    all_nodes_dict = {root_model.model_id: root_model}
+    def _get_entity_id(entity: HFModel | HFDataset) -> str:
+        """Get the ID field from either Model or Dataset."""
+        if isinstance(entity, HFModel):
+            return entity.model_id
+        elif isinstance(entity, HFDataset):
+            return entity.dataset_id
+        raise ValueError(f"Unknown entity type: {type(entity)}")
 
-    # Build relationships: only direct connections to/from queried model
+    # Collect all nodes (use dict to avoid duplicates)
+    root_id = _get_entity_id(root_entity)
+    all_nodes_dict = {root_id: root_entity}
+
+    # Build relationships: only direct connections to/from queried entity
     relationships = []
 
-    # Process upstream models (all of them) and build relationships
-    # Upstream relationships: queried_model -> upstream (queried model is based on upstream)
+    # Process upstream entities and build relationships
     for record in upstream_res:
         upstream_dict = record.data()["upstream"]
-        upstream_model = _ensure_entity(upstream_dict)
-        if isinstance(upstream_model, HFModel):
-            all_nodes_dict[upstream_model.model_id] = upstream_model
-            rel_type = record.data()["rel_type"]
-            relationships.append(
-                HFRelationship(
-                    source=root_model,
-                    relationship=rel_type,
-                    target=upstream_model,
-                )
+        upstream_entity = _ensure_entity(upstream_dict)
+        upstream_id = _get_entity_id(upstream_entity)
+        all_nodes_dict[upstream_id] = upstream_entity
+        rel_type = record.data()["rel_type"]
+        relationships.append(
+            HFRelationship(
+                source=root_entity,
+                relationship=rel_type,
+                target=upstream_entity,
             )
+        )
 
-    # Process downstream models (max 5) and build relationships
-    # Downstream relationships: downstream -> queried_model (downstream is based on queried model)
+    # Process downstream entities and build relationships
     for record in downstream_res:
         downstream_dict = record.data()["downstream"]
-        downstream_model = _ensure_entity(downstream_dict)
-        if isinstance(downstream_model, HFModel):
-            all_nodes_dict[downstream_model.model_id] = downstream_model
-            rel_type = record.data()["rel_type"]
-            relationships.append(
-                HFRelationship(
-                    source=downstream_model,
-                    relationship=rel_type,
-                    target=root_model,
-                )
+        downstream_entity = _ensure_entity(downstream_dict)
+        downstream_id = _get_entity_id(downstream_entity)
+        all_nodes_dict[downstream_id] = downstream_entity
+        rel_type = record.data()["rel_type"]
+        relationships.append(
+            HFRelationship(
+                source=downstream_entity,
+                relationship=rel_type,
+                target=root_entity,
             )
+        )
 
     all_nodes = list(all_nodes_dict.values())
 
-    upstream_count = sum(1 for r in relationships if r.source.model_id == model_id)
-    downstream_count = sum(1 for r in relationships if r.target.model_id == model_id)
+    # Count relationships (using entity ID getter)
+    upstream_count = sum(1 for r in relationships if _get_entity_id(r.source) == model_id)
+    downstream_count = sum(1 for r in relationships if _get_entity_id(r.target) == model_id)
 
+    entity_type = "dataset" if is_dataset else "model"
     logger.info(
-        f"Found {upstream_count} upstream models, "
-        f"{downstream_count} downstream models, "
+        f"Found {upstream_count} upstream entities, "
+        f"{downstream_count} downstream entities, "
         f"{len(all_nodes)} total nodes, "
-        f"{len(relationships)} relationships"
+        f"{len(relationships)} relationships for {entity_type} {model_id}"
     )
 
     result = HFGraphData(
@@ -268,3 +322,9 @@ def search_query(model_id: str) -> HFGraphData:
     set_tool_result("search_neo4j", result)
 
     return result
+
+
+@function_tool
+def search_query(model_id: str) -> HFGraphData:
+    """Get lineage tree for a given model or dataset: queried entity + prioritized upstreams + capped downstreams (max 10 related)."""
+    return search_query_impl(model_id)

@@ -20,11 +20,11 @@ neo4j_search_agent = Agent(
     name="Neo4jInfoAgent",
     instructions=(
         "You receive HuggingFace search results as input. Your task is to:\n"
-        "1. Extract the FIRST model ID from the input text (look for lines like '**1. [model_id]' or model names like 'Qwen/Qwen3-4B')\n"
-        "2. IMMEDIATELY call search_neo4j(model_id) with the extracted model ID\n"
-        "3. Do NOT ask the user which model to use - automatically select the first/best match\n"
-        "4. If multiple models are listed, use the first one in the list\n"
-        "Model IDs typically look like 'author/model-name' (e.g., 'Qwen/Qwen3-4B')\n"
+        "1. Extract the FIRST model ID or dataset ID from the input text (look for lines like '**1. [model_id]' or model/dataset names like 'Qwen/Qwen3-4B' or 'allenai/c4')\n"
+        "2. IMMEDIATELY call search_neo4j(model_id) with the extracted ID (works for both models and datasets)\n"
+        "3. Do NOT ask the user which model/dataset to use - automatically select the first/best match\n"
+        "4. If multiple models/datasets are listed, use the first one in the list\n"
+        "IDs typically look like 'author/model-name' or 'author/dataset-name' (e.g., 'Qwen/Qwen3-4B' or 'allenai/c4')\n"
         "Call the tool immediately without asking for confirmation."
     ),
     model="gpt-4.1-mini",

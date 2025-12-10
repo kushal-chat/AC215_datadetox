@@ -49,9 +49,9 @@ async def _collect_response_text(result: RunResultStreaming) -> str:
 
 
 def _extract_model_ids_from_text(text: str) -> List[str]:
-    """Extract HuggingFace model IDs from text using regex patterns."""
-    # Pattern to match model IDs like "author/model-name" or "Qwen/Qwen3-4B"
-    # Look for patterns like [author/model], "author/model", bullet lists, or lines with model IDs
+    """Extract HuggingFace model IDs or dataset IDs from text using regex patterns."""
+    # Pattern to match model/dataset IDs like "author/model-name" or "Qwen/Qwen3-4B" or "allenai/c4"
+    # Look for patterns like [author/model], "author/model", bullet lists, or lines with model/dataset IDs
     patterns = [
         r"\*\*?\d+\.\s*\[([^/\]]+/[^\]]+)\]",  # **1. [author/model]
         r"-\s+([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)",  # - author/model-name (bullet list)
@@ -59,33 +59,32 @@ def _extract_model_ids_from_text(text: str) -> List[str]:
         r"\b([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+)\b",  # author/model-name (word boundary)
     ]
 
-    model_ids = []
+    entity_ids = []
     seen = set()
 
     for pattern in patterns:
         matches = re.findall(pattern, text)
         for match in matches:
             # Clean up the match
-            model_id = match.strip()
-            # Basic validation: should have a slash and look like a model ID
-            if "/" in model_id and len(model_id.split("/")) == 2:
-                # Skip if it's clearly a URL, dataset, or other non-model patterns
+            entity_id = match.strip()
+            # Basic validation: should have a slash and look like a model/dataset ID
+            if "/" in entity_id and len(entity_id.split("/")) == 2:
+                # Skip if it's clearly a URL or other non-entity patterns
                 if (
-                    "huggingface.co" not in model_id.lower()
-                    and "dataset" not in model_id.lower()
-                    and "http" not in model_id.lower()
-                    and len(model_id.split("/")[0]) > 0  # author exists
-                    and len(model_id.split("/")[1]) > 0
-                ):  # model name exists
-                    if model_id not in seen:
-                        seen.add(model_id)
-                        model_ids.append(model_id)
+                    "huggingface.co" not in entity_id.lower()
+                    and "http" not in entity_id.lower()
+                    and len(entity_id.split("/")[0]) > 0  # author exists
+                    and len(entity_id.split("/")[1]) > 0
+                ):  # entity name exists
+                    if entity_id not in seen:
+                        seen.add(entity_id)
+                        entity_ids.append(entity_id)
 
-    return model_ids[:5]  # Return up to 5 model IDs
+    return entity_ids[:5]  # Return up to 5 entity IDs (models or datasets)
 
 
 def _extract_model_ids_from_graph(graph: Any, limit: int = 10) -> List[str]:
-    """Collect unique model IDs from the Neo4j graph result."""
+    """Collect unique model IDs and dataset IDs from the Neo4j graph result."""
     if not graph:
         return []
 
@@ -94,26 +93,26 @@ def _extract_model_ids_from_graph(graph: Any, limit: int = 10) -> List[str]:
         return []
 
     raw_nodes = getattr(nodes, "nodes", None) or []
-    model_ids: List[str] = []
+    entity_ids: List[str] = []
     for node in raw_nodes:
         if isinstance(node, dict):
-            model_id = node.get("model_id")
+            entity_id = node.get("model_id") or node.get("dataset_id")
         else:
-            model_id = getattr(node, "model_id", None)
+            entity_id = getattr(node, "model_id", None) or getattr(node, "dataset_id", None)
 
-        if model_id:
-            model_ids.append(model_id)
+        if entity_id:
+            entity_ids.append(entity_id)
 
-    queried_model_id = getattr(graph, "queried_model_id", None)
-    if queried_model_id:
-        model_ids.insert(0, queried_model_id)
+    queried_entity_id = getattr(graph, "queried_model_id", None)
+    if queried_entity_id:
+        entity_ids.insert(0, queried_entity_id)
 
     seen = set()
     deduped: List[str] = []
-    for mid in model_ids:
-        if mid not in seen:
-            seen.add(mid)
-            deduped.append(mid)
+    for eid in entity_ids:
+        if eid not in seen:
+            seen.add(eid)
+            deduped.append(eid)
         if len(deduped) >= limit:
             break
 
@@ -184,28 +183,28 @@ async def run_search(query: Query, request: Request):
                 await emit_status("Stage 2 complete.")
                 neo4j_graph = get_tool_result("search_neo4j", request)
 
-                # Fallback: If Neo4j agent didn't call the tool, try extracting model IDs and calling directly
+                # Fallback: If Neo4j agent didn't call the tool, try extracting model/dataset IDs and calling directly
                 if not neo4j_graph:
                     search_logger.warning(
                         "Neo4j agent did not call search_neo4j tool, attempting fallback"
                     )
                     from .search.utils.search_neo4j import (
-                        search_query as search_neo4j_tool,
+                        search_query_impl as search_neo4j_tool,
                     )
 
-                    # Extract model IDs from HuggingFace summary
-                    extracted_model_ids = _extract_model_ids_from_text(hf_summary_text)
+                    # Extract model/dataset IDs from HuggingFace summary
+                    extracted_entity_ids = _extract_model_ids_from_text(hf_summary_text)
                     search_logger.info(
-                        f"Extracted model IDs from HF summary: {extracted_model_ids}"
+                        f"Extracted entity IDs from HF summary: {extracted_entity_ids}"
                     )
-                    if extracted_model_ids:
+                    if extracted_entity_ids:
                         try:
-                            # Try searching with the first model ID
-                            first_model_id = extracted_model_ids[0]
+                            # Try searching with the first entity ID (model or dataset)
+                            first_entity_id = extracted_entity_ids[0]
                             search_logger.info(
-                                f"Calling search_neo4j directly with model_id: {first_model_id}"
+                                f"Calling search_neo4j directly with entity_id: {first_entity_id}"
                             )
-                            neo4j_graph = search_neo4j_tool(first_model_id)
+                            neo4j_graph = search_neo4j_tool(first_entity_id)
                             search_logger.info(
                                 f"Fallback Neo4j search successful, found {len(neo4j_graph.nodes.nodes) if neo4j_graph else 0} nodes"
                             )
@@ -214,20 +213,20 @@ async def run_search(query: Query, request: Request):
                                 f"Fallback Neo4j search failed: {fallback_error}"
                             )
 
-                # Check if model was found in Neo4j - if not, end early
-                model_ids = _extract_model_ids_from_graph(neo4j_graph)
-                if not model_ids or (neo4j_graph and len(neo4j_graph.nodes.nodes) == 0):
+                # Check if model or dataset was found in Neo4j - if not, end early
+                entity_ids = _extract_model_ids_from_graph(neo4j_graph)
+                if not entity_ids or (neo4j_graph and len(neo4j_graph.nodes.nodes) == 0):
                     search_logger.warning(
-                        "Model not found in Neo4j database, ending workflow at Stage 2"
+                        "Model or dataset not found in Neo4j database, ending workflow at Stage 2"
                     )
 
                     # Prepare a user-friendly response
                     not_found_message = (
-                        "I couldn't find this model in our Neo4j lineage database. "
+                        "I couldn't find this model or dataset in our Neo4j lineage database. "
                         "This could mean:\n"
-                        "- The model hasn't been indexed yet\n"
-                        "- The model ID may be incorrect\n"
-                        "- The model exists on HuggingFace but doesn't have lineage relationships in our database\n\n"
+                        "- The model/dataset hasn't been indexed yet\n"
+                        "- The model/dataset ID may be incorrect\n"
+                        "- The model/dataset exists on HuggingFace but doesn't have lineage relationships in our database\n\n"
                         f"Based on the HuggingFace search:\n{hf_summary}"
                     )
 
@@ -254,6 +253,18 @@ async def run_search(query: Query, request: Request):
                 dataset_task = None
                 hf_followup_task = None
                 # Stage 3: Arxiv dataset extraction agent (uses new tooling)
+                # Only extract datasets for models, not for datasets themselves
+                # Filter entity_ids to only include models (those with model_id, not dataset_id)
+                model_ids: List[str] = []
+                if neo4j_graph and neo4j_graph.nodes:
+                    for node in neo4j_graph.nodes.nodes:
+                        if isinstance(node, dict):
+                            model_id = node.get("model_id")
+                        else:
+                            model_id = getattr(node, "model_id", None)
+                        if model_id and model_id in entity_ids:
+                            model_ids.append(model_id)
+                
                 if model_ids:
                     await emit_status("Stage 3: Extracting training datasets...")
 
@@ -384,7 +395,7 @@ async def run_search(query: Query, request: Request):
                     "training_datasets": training_dataset_map,
                     "dataset_risk": dataset_risk_context,
                     "dataset_risk_summary": dataset_risk_summary,
-                    "models_analyzed": model_ids,
+                    "models_analyzed": entity_ids,  # Include both models and datasets
                     "stage_summaries": stage_summaries,
                 }
 
