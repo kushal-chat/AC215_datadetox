@@ -23,7 +23,7 @@ vi.mock('react-d3-tree', () => ({
 // Helper function to create a mock ReadableStream for streaming responses
 const createMockStream = (text: string, metadata?: any) => {
   const encoder = new TextEncoder();
-  const metadataStr = metadata 
+  const metadataStr = metadata
     ? `<METADATA_START>${JSON.stringify(metadata)}<METADATA_END>`
     : '';
   const chunks = [
@@ -31,7 +31,7 @@ const createMockStream = (text: string, metadata?: any) => {
     ...(metadataStr ? [encoder.encode(metadataStr)] : [])
   ];
   let index = 0;
-  
+
   return new ReadableStream({
     start(controller) {
       // Enqueue chunks asynchronously to simulate real streaming
