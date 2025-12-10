@@ -306,4 +306,3 @@ class TestBuildDatasetRiskContext:
         }
         result = build_dataset_risk_context(training_dataset_map)
         assert result["models"][0]["arxiv_url"] == "https://arxiv.org/abs/1234.5678"
-

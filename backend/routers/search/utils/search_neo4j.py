@@ -301,8 +301,12 @@ def search_query_impl(model_id: str) -> HFGraphData:
     all_nodes = list(all_nodes_dict.values())
 
     # Count relationships (using entity ID getter)
-    upstream_count = sum(1 for r in relationships if _get_entity_id(r.source) == model_id)
-    downstream_count = sum(1 for r in relationships if _get_entity_id(r.target) == model_id)
+    upstream_count = sum(
+        1 for r in relationships if _get_entity_id(r.source) == model_id
+    )
+    downstream_count = sum(
+        1 for r in relationships if _get_entity_id(r.target) == model_id
+    )
 
     entity_type = "dataset" if is_dataset else "model"
     logger.info(

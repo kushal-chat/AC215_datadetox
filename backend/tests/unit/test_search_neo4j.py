@@ -183,7 +183,9 @@ class TestSearchQueryImpl:
 
     @patch("routers.search.utils.search_neo4j.driver")
     @patch("routers.search.utils.search_neo4j.set_tool_result")
-    def test_search_with_upstream_relationships(self, mock_set_tool_result, mock_driver):
+    def test_search_with_upstream_relationships(
+        self, mock_set_tool_result, mock_driver
+    ):
         """Test search with upstream relationships."""
         # Mock root model
         mock_root_record = Mock()
@@ -218,7 +220,9 @@ class TestSearchQueryImpl:
 
     @patch("routers.search.utils.search_neo4j.driver")
     @patch("routers.search.utils.search_neo4j.set_tool_result")
-    def test_search_with_downstream_relationships(self, mock_set_tool_result, mock_driver):
+    def test_search_with_downstream_relationships(
+        self, mock_set_tool_result, mock_driver
+    ):
         """Test search with downstream relationships."""
         # Mock root model
         mock_root_record = Mock()
@@ -278,11 +282,14 @@ class TestSearchQueryImpl:
 
         mock_driver.execute_query.side_effect = [
             ([mock_root_record], mock_summary, None),  # Root query
-            (mock_upstream_records, mock_summary, None),  # Upstream query (limited to 10 by query)
+            (
+                mock_upstream_records,
+                mock_summary,
+                None,
+            ),  # Upstream query (limited to 10 by query)
             ([], mock_summary, None),  # Downstream query
         ]
 
         result = search_query_impl("test/model")
         # Should have root + up to 10 upstream = 11 nodes max
         assert len(result.nodes.nodes) <= 11
-

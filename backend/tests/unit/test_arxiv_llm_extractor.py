@@ -11,7 +11,9 @@ class TestLLMDatasetExtractor:
     def test_init_with_api_key(self):
         """Test initialization with API key."""
         with patch.dict("os.environ", {"OPENAI_API_KEY": "test-key"}):
-            with patch("routers.search.utils.arxiv_llm_extractor.OpenAI") as mock_openai:
+            with patch(
+                "routers.search.utils.arxiv_llm_extractor.OpenAI"
+            ) as mock_openai:
                 extractor = LLMDatasetExtractor()
                 assert extractor.client is not None
                 mock_openai.assert_called_once_with(api_key="test-key")
@@ -41,24 +43,26 @@ class TestLLMDatasetExtractor:
         mock_client = Mock()
         mock_response = Mock()
         mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = json.dumps({
-            "datasets": [
-                {
-                    "name": "BookCorpus",
-                    "type": "public_dataset",
-                    "source": None,
-                    "context": "Used for pretraining",
-                    "hf_url": "https://huggingface.co/datasets/bookcorpus",
-                },
-                {
-                    "name": "Synthetic data from GPT-4",
-                    "type": "synthetic",
-                    "source": "GPT-4",
-                    "context": "Generated for training",
-                    "hf_url": None,
-                },
-            ]
-        })
+        mock_response.choices[0].message.content = json.dumps(
+            {
+                "datasets": [
+                    {
+                        "name": "BookCorpus",
+                        "type": "public_dataset",
+                        "source": None,
+                        "context": "Used for pretraining",
+                        "hf_url": "https://huggingface.co/datasets/bookcorpus",
+                    },
+                    {
+                        "name": "Synthetic data from GPT-4",
+                        "type": "synthetic",
+                        "source": "GPT-4",
+                        "context": "Generated for training",
+                        "hf_url": None,
+                    },
+                ]
+            }
+        )
         mock_client.chat.completions.create.return_value = mock_response
         mock_openai_class.return_value = mock_client
 
@@ -158,7 +162,9 @@ class TestLLMDatasetExtractor:
 
         # Create very long text
         long_text = "A" * 20000
-        extractor.extract_datasets(long_text, "model/test", "https://arxiv.org/abs/1234.5678")
+        extractor.extract_datasets(
+            long_text, "model/test", "https://arxiv.org/abs/1234.5678"
+        )
 
         # Check that the prompt was limited
         call_args = mock_client.chat.completions.create.call_args
@@ -172,20 +178,22 @@ class TestLLMDatasetExtractor:
         mock_client = Mock()
         mock_response = Mock()
         mock_response.choices = [Mock()]
-        mock_response.choices[0].message.content = json.dumps({
-            "datasets": [
-                {
-                    "name": "Valid Dataset",
-                    "type": "public_dataset",
-                    "source": None,
-                    "context": "Used for training",
-                    "hf_url": None,
-                },
-                {
-                    "invalid": "entry",  # Missing required fields
-                },
-            ]
-        })
+        mock_response.choices[0].message.content = json.dumps(
+            {
+                "datasets": [
+                    {
+                        "name": "Valid Dataset",
+                        "type": "public_dataset",
+                        "source": None,
+                        "context": "Used for training",
+                        "hf_url": None,
+                    },
+                    {
+                        "invalid": "entry",  # Missing required fields
+                    },
+                ]
+            }
+        )
         mock_client.chat.completions.create.return_value = mock_response
         mock_openai_class.return_value = mock_client
 
@@ -199,4 +207,3 @@ class TestLLMDatasetExtractor:
             # Should still return valid entries (invalid ones are skipped with warning)
             assert len(result) >= 1
             assert any(ds.name == "Valid Dataset" for ds in result)
-

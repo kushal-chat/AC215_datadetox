@@ -98,7 +98,9 @@ def _extract_model_ids_from_graph(graph: Any, limit: int = 10) -> List[str]:
         if isinstance(node, dict):
             entity_id = node.get("model_id") or node.get("dataset_id")
         else:
-            entity_id = getattr(node, "model_id", None) or getattr(node, "dataset_id", None)
+            entity_id = getattr(node, "model_id", None) or getattr(
+                node, "dataset_id", None
+            )
 
         if entity_id:
             entity_ids.append(entity_id)
@@ -215,7 +217,9 @@ async def run_search(query: Query, request: Request):
 
                 # Check if model or dataset was found in Neo4j - if not, end early
                 entity_ids = _extract_model_ids_from_graph(neo4j_graph)
-                if not entity_ids or (neo4j_graph and len(neo4j_graph.nodes.nodes) == 0):
+                if not entity_ids or (
+                    neo4j_graph and len(neo4j_graph.nodes.nodes) == 0
+                ):
                     search_logger.warning(
                         "Model or dataset not found in Neo4j database, ending workflow at Stage 2"
                     )
@@ -264,7 +268,7 @@ async def run_search(query: Query, request: Request):
                             model_id = getattr(node, "model_id", None)
                         if model_id and model_id in entity_ids:
                             model_ids.append(model_id)
-                
+
                 if model_ids:
                     await emit_status("Stage 3: Extracting training datasets...")
 

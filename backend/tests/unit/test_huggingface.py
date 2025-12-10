@@ -382,7 +382,9 @@ class TestSearchHuggingfaceFunction:
         mock_search_models.return_value = [{"id": "model1/test"}]
         mock_format.return_value = "Formatted results"
 
-        result = search_huggingface_function("test query", include_models=True, include_datasets=False)
+        result = search_huggingface_function(
+            "test query", include_models=True, include_datasets=False
+        )
         assert result == "Formatted results"
         mock_search_models.assert_called_once()
         mock_search_datasets.assert_not_called()
@@ -397,8 +399,9 @@ class TestSearchHuggingfaceFunction:
         mock_search_datasets.return_value = [{"id": "dataset1/test"}]
         mock_format.return_value = "Formatted results"
 
-        result = search_huggingface_function("test query", include_models=False, include_datasets=True)
+        result = search_huggingface_function(
+            "test query", include_models=False, include_datasets=True
+        )
         assert result == "Formatted results"
         mock_search_models.assert_not_called()
         mock_search_datasets.assert_called_once()
-

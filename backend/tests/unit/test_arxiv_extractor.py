@@ -39,10 +39,8 @@ class TestArxivLinkExtractor:
         assert arxiv_id is None
 
 
-
 class TestArxivPaperParser:
     """Tests for ArxivPaperParser class."""
-
 
     def test_extract_text_from_pdf_exception(self):
         """Test extracting text from PDF with exception."""
@@ -96,7 +94,6 @@ class TestArxivPaperParser:
         assert any("squad" in url or "glue" in url for url in urls)
 
 
-
 class TestArxivDatasetExtractor:
     """Tests for ArxivDatasetExtractor class."""
 
@@ -108,14 +105,20 @@ class TestArxivDatasetExtractor:
         mock_session = AsyncMock()
 
         # Mock link extractor
-        with patch.object(extractor.link_extractor, "extract_from_model_card", new_callable=AsyncMock) as mock_extract_link:
+        with patch.object(
+            extractor.link_extractor, "extract_from_model_card", new_callable=AsyncMock
+        ) as mock_extract_link:
             mock_extract_link.return_value = "https://arxiv.org/abs/1234.5678"
 
             # Mock paper parser
-            with patch.object(extractor.paper_parser, "parse_paper", new_callable=AsyncMock) as mock_parse:
+            with patch.object(
+                extractor.paper_parser, "parse_paper", new_callable=AsyncMock
+            ) as mock_parse:
                 mock_parse.return_value = [DatasetInfo(name="squad")]
 
-                result = await extractor._extract_for_single_model("model/test", mock_session)
+                result = await extractor._extract_for_single_model(
+                    "model/test", mock_session
+                )
 
                 assert isinstance(result, ModelPaperInfo)
                 assert result.model_id == "model/test"
@@ -129,10 +132,14 @@ class TestArxivDatasetExtractor:
 
         mock_session = AsyncMock()
 
-        with patch.object(extractor.link_extractor, "extract_from_model_card", new_callable=AsyncMock) as mock_extract_link:
+        with patch.object(
+            extractor.link_extractor, "extract_from_model_card", new_callable=AsyncMock
+        ) as mock_extract_link:
             mock_extract_link.return_value = None
 
-            result = await extractor._extract_for_single_model("model/test", mock_session)
+            result = await extractor._extract_for_single_model(
+                "model/test", mock_session
+            )
 
             assert result.arxiv_url is None
             assert len(result.datasets) == 0
@@ -149,8 +156,12 @@ class TestArxivDatasetExtractor:
                 datasets=[DatasetInfo(name="squad")],
             )
 
-        with patch.object(extractor, "_extract_for_single_model", side_effect=mock_extract_single):
-            result = await extractor.extract_for_models(["model1/test", "model2/test"], max_concurrent=2)
+        with patch.object(
+            extractor, "_extract_for_single_model", side_effect=mock_extract_single
+        ):
+            result = await extractor.extract_for_models(
+                ["model1/test", "model2/test"], max_concurrent=2
+            )
 
             assert len(result) == 2
             assert "model1/test" in result
@@ -202,7 +213,9 @@ class TestArxivDatasetExtractor:
         """Test synchronous extraction when no event loop is running."""
         extractor = ArxivDatasetExtractor()
 
-        with patch("asyncio.get_running_loop", side_effect=RuntimeError("No running loop")):
+        with patch(
+            "asyncio.get_running_loop", side_effect=RuntimeError("No running loop")
+        ):
             with patch("asyncio.run") as mock_run:
                 mock_run.return_value = {
                     "model/test": ModelPaperInfo(
@@ -215,4 +228,3 @@ class TestArxivDatasetExtractor:
                 result = extractor.extract_sync(["model/test"])
                 mock_run.assert_called_once()
                 assert "model/test" in result
-

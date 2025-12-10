@@ -41,7 +41,10 @@ class TestToolResult:
         mock_request.state = State()
         mock_request.state.tool_results = {}
 
-        with patch("routers.search.utils.tool_state.get_request_context", return_value=mock_request):
+        with patch(
+            "routers.search.utils.tool_state.get_request_context",
+            return_value=mock_request,
+        ):
             set_tool_result("test_tool", {"result": "data"})
             assert mock_request.state.tool_results["test_tool"] == {"result": "data"}
 
@@ -50,20 +53,26 @@ class TestToolResult:
         mock_request = Mock(spec=Request)
         mock_request.state = State()
 
-        with patch("routers.search.utils.tool_state.get_request_context", return_value=mock_request):
+        with patch(
+            "routers.search.utils.tool_state.get_request_context",
+            return_value=mock_request,
+        ):
             set_tool_result("test_tool", {"result": "data"})
             assert hasattr(mock_request.state, "tool_results")
             assert mock_request.state.tool_results["test_tool"] == {"result": "data"}
 
     def test_set_tool_result_no_request_context(self):
         """Test setting tool result when no request context."""
-        with patch("routers.search.utils.tool_state.get_request_context", return_value=None):
+        with patch(
+            "routers.search.utils.tool_state.get_request_context", return_value=None
+        ):
             with patch("logging.getLogger") as mock_get_logger:
                 mock_logger = Mock()
                 mock_get_logger.return_value = mock_logger
                 # Re-import to get the patched logger
                 import importlib
                 import routers.search.utils.tool_state as tool_state_module
+
                 importlib.reload(tool_state_module)
                 tool_state_module.set_tool_result("test_tool", {"result": "data"})
                 # Logger should be called (warning logged)
@@ -85,7 +94,10 @@ class TestToolResult:
         mock_request.state = State()
         mock_request.state.tool_results = {"test_tool": {"result": "data"}}
 
-        with patch("routers.search.utils.tool_state.get_request_context", return_value=mock_request):
+        with patch(
+            "routers.search.utils.tool_state.get_request_context",
+            return_value=mock_request,
+        ):
             result = get_tool_result("test_tool")
             assert result == {"result": "data"}
 
@@ -100,7 +112,9 @@ class TestToolResult:
 
     def test_get_tool_result_no_request(self):
         """Test getting tool result when no request available."""
-        with patch("routers.search.utils.tool_state.get_request_context", return_value=None):
+        with patch(
+            "routers.search.utils.tool_state.get_request_context", return_value=None
+        ):
             result = get_tool_result("test_tool")
             assert result is None
 
@@ -119,7 +133,10 @@ class TestToolResult:
         mock_request.state = State()
         mock_request.state.tool_results = {}
 
-        with patch("routers.search.utils.tool_state.get_request_context", return_value=mock_request):
+        with patch(
+            "routers.search.utils.tool_state.get_request_context",
+            return_value=mock_request,
+        ):
             set_tool_result("tool1", {"result1": "data1"})
             set_tool_result("tool2", {"result2": "data2"})
 
@@ -158,4 +175,3 @@ class TestProgressCallback:
 
         result = get_progress_callback()
         assert result == mock_callback
-

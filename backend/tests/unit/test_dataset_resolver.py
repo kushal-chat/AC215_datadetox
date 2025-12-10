@@ -182,4 +182,3 @@ class TestEnrichDatasetInfo:
         """Test enriching empty list."""
         result = enrich_dataset_info([])
         assert result == []
-

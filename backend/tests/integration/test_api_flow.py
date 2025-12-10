@@ -17,48 +17,50 @@ def mock_agent_runner():
             # Return empty stream for now
             return
             yield  # Make it a generator
-        
+
         # Mock result for HuggingFace search
         mock_hf_result = MagicMock()
-        mock_hf_result.final_output_as.return_value = "**1. [test/model]**\nModel description here"
+        mock_hf_result.final_output_as.return_value = (
+            "**1. [test/model]**\nModel description here"
+        )
         mock_hf_result.stream_events = mock_stream_events
-        
+
         # Mock result for Neo4j search
         mock_neo4j_result = MagicMock()
         mock_neo4j_result.final_output_as.return_value = "Neo4j search results"
         mock_neo4j_result.stream_events = mock_stream_events
-        
+
         # Mock result for dataset extraction
         mock_dataset_result = MagicMock()
         mock_dataset_result.final_output_as.return_value = "Dataset extraction results"
         mock_dataset_result.stream_events = mock_stream_events
-        
+
         # Mock result for risk assessment
         mock_risk_result = MagicMock()
         mock_risk_result.final_output_as.return_value = "Risk assessment results"
         mock_risk_result.stream_events = mock_stream_events
-        
+
         # Mock result for compiler
         mock_compiler_result = MagicMock()
         mock_compiler_result.final_output_as.return_value = "Compiled response"
         mock_compiler_result.stream_events = mock_stream_events
-        
+
         # Configure run_streamed to return appropriate results based on agent
         def run_streamed_side_effect(starting_agent, input):
             # Return different results based on which agent is being called
-            agent_name = getattr(starting_agent, 'name', '')
-            if 'HFSearch' in agent_name or 'hf_search' in str(starting_agent):
+            agent_name = getattr(starting_agent, "name", "")
+            if "HFSearch" in agent_name or "hf_search" in str(starting_agent):
                 return mock_hf_result
-            elif 'Neo4j' in agent_name or 'neo4j' in str(starting_agent):
+            elif "Neo4j" in agent_name or "neo4j" in str(starting_agent):
                 return mock_neo4j_result
-            elif 'Dataset' in agent_name or 'dataset' in str(starting_agent):
+            elif "Dataset" in agent_name or "dataset" in str(starting_agent):
                 return mock_dataset_result
-            elif 'Risk' in agent_name or 'risk' in str(starting_agent):
+            elif "Risk" in agent_name or "risk" in str(starting_agent):
                 return mock_risk_result
-            elif 'Compiler' in agent_name or 'compiler' in str(starting_agent):
+            elif "Compiler" in agent_name or "compiler" in str(starting_agent):
                 return mock_compiler_result
             return mock_hf_result
-        
+
         mock_runner.run_streamed = MagicMock(side_effect=run_streamed_side_effect)
         yield mock_runner
 
@@ -133,7 +135,9 @@ def test_full_search_flow_with_neo4j_data(
 ):
     """Test the complete search flow from API to response with Neo4j data."""
     # Mock the agent to actually call search_neo4j by patching the tool
-    with patch("routers.search.utils.search_neo4j.search_query_impl") as mock_search_query:
+    with patch(
+        "routers.search.utils.search_neo4j.search_query_impl"
+    ) as mock_search_query:
         from routers.search.utils.search_neo4j import (
             HFGraphData,
             HFNodes,
@@ -160,18 +164,22 @@ def test_full_search_flow_with_neo4j_data(
         content = response.text
         assert len(content) > 0
         # Check that it contains expected status messages
-        assert "Stage 1" in content or "Stage 2" in content or "METADATA_START" in content
+        assert (
+            "Stage 1" in content or "Stage 2" in content or "METADATA_START" in content
+        )
 
 
 def test_search_flow_without_neo4j_data(mock_agent_runner, mock_huggingface_api):
     """Test search flow when Neo4j returns no data."""
-    with patch("routers.search.utils.search_neo4j.search_query_impl") as mock_search_query:
+    with patch(
+        "routers.search.utils.search_neo4j.search_query_impl"
+    ) as mock_search_query:
         from routers.search.utils.search_neo4j import (
             HFGraphData,
             HFNodes,
             HFRelationships,
         )
-        
+
         # Return empty graph
         mock_search_query.return_value = HFGraphData(
             nodes=HFNodes(nodes=[]),
@@ -187,8 +195,6 @@ def test_search_flow_without_neo4j_data(mock_agent_runner, mock_huggingface_api)
         # Response is streaming text
         content = response.text
         assert len(content) > 0
-
-
 
 
 def test_search_flow_validation():
@@ -210,14 +216,16 @@ def test_search_flow_with_request_context(
     mock_agent_runner, mock_neo4j_driver, mock_huggingface_api
 ):
     """Test that request context is properly set and used."""
-    with patch("routers.search.utils.search_neo4j.search_query_impl") as mock_search_query:
+    with patch(
+        "routers.search.utils.search_neo4j.search_query_impl"
+    ) as mock_search_query:
         from routers.search.utils.search_neo4j import (
             HFGraphData,
             HFNodes,
             HFRelationships,
             HFModel,
         )
-        
+
         # Return graph with model
         mock_model = HFModel(model_id="test/model", downloads=1000)
         mock_search_query.return_value = HFGraphData(
@@ -225,7 +233,7 @@ def test_search_flow_with_request_context(
             relationships=HFRelationships(relationships=[]),
             queried_model_id="test/model",
         )
-        
+
         response = client.post(
             "/backend/flow/search",
             json={"query_val": "test model"},
@@ -241,14 +249,16 @@ def test_search_flow_tool_state_integration(
     mock_agent_runner, mock_neo4j_driver, mock_huggingface_api
 ):
     """Test that tool state is properly managed across the flow."""
-    with patch("routers.search.utils.search_neo4j.search_query_impl") as mock_search_query:
+    with patch(
+        "routers.search.utils.search_neo4j.search_query_impl"
+    ) as mock_search_query:
         from routers.search.utils.search_neo4j import (
             HFGraphData,
             HFNodes,
             HFRelationships,
             HFModel,
         )
-        
+
         # Return graph with model
         mock_model = HFModel(model_id="bert/model", downloads=1000)
         mock_search_query.return_value = HFGraphData(
@@ -256,7 +266,7 @@ def test_search_flow_tool_state_integration(
             relationships=HFRelationships(relationships=[]),
             queried_model_id="bert/model",
         )
-        
+
         response = client.post(
             "/backend/flow/search",
             json={"query_val": "bert model"},

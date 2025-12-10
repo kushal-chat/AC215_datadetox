@@ -271,6 +271,3 @@ class TestSerializeGraphWithDatasets:
         model2_node = next(n for n in nodes_list if n["model_id"] == "model2/test")
         assert "training_datasets" in model1_node
         assert "training_datasets" in model2_node
-
-
-

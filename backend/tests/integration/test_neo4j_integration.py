@@ -121,7 +121,11 @@ def test_neo4j_apoc_integration(mock_neo4j_driver):
 
     mock_neo4j_driver.execute_query.side_effect = [
         ([mock_root_record], mock_summary, None),  # Root query
-        ([mock_upstream1, mock_upstream2], mock_summary, None),  # Upstream query (2 relationships)
+        (
+            [mock_upstream1, mock_upstream2],
+            mock_summary,
+            None,
+        ),  # Upstream query (2 relationships)
         ([], mock_summary, None),  # Downstream query
     ]
 
