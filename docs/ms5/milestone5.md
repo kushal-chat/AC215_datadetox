@@ -17,8 +17,8 @@
 - [ ] Create engaging booth materials for the showcase (e.g., diagrams, QR codes).
 
 4. Showcase Preparation
-- [ ] Ensure your application is publicly accessible, stable, and easy to demo.
-- [ ] Prepare to explain your architecture, decisions, and business value to visitors.
+- [X] Ensure your application is publicly accessible, stable, and easy to demo.
+- [X] Prepare to explain your architecture, decisions, and business value to visitors.
 
 ## Deliverables
 ### 1. Technical Implementation

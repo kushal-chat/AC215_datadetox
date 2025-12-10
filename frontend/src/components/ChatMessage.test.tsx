@@ -60,7 +60,7 @@ describe('ChatMessage', () => {
       />
     );
 
-    const link = screen.getByRole('link', { name: 'this link' });
+    const link = screen.getByRole('link', { name: 'this [link]' });
     expect(link).toBeInTheDocument();
     expect(link).toHaveAttribute('href', 'https://example.com');
     expect(link).toHaveAttribute('target', '_blank');

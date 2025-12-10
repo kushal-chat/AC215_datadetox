@@ -475,7 +475,7 @@ const ModelTreeFlowInner = ({ neo4jData, datasetRisk }: ModelTreeProps) => {
           }
           /* Ensure edge labels are visible */
           .react-flow__edge-text {
-            fill: #1f2937 !important;
+            fill:rgb(2, 21, 47) !important;
             font-size: 13px !important;
             font-weight: 700 !important;
             font-family: monospace !important;

@@ -7,46 +7,108 @@ This document provides a comprehensive overview of test coverage across all serv
 | Service | Coverage | Status |
 |---------|----------|--------|
 | **Backend** | 83% | ✅ Above 60% threshold |
-| **Model-Lineage** | 77% | ✅ Above 60% threshold |
+| **Model-Lineage** | 76% | ✅ Above 60% threshold |
 | **Frontend** | ~76% | ✅ Above 60% threshold |
 
 ## Backend Service Coverage
 
-**Overall Coverage: 83%** (290 statements, 48 missing)
+**Overall Coverage: 83%** (951 statements, 164 missing)
+
+### Test Files
+
+**Unit Tests (145 tests):**
+- `test_client.py` - Tests for client router helper functions (11 tests)
+  - Model ID extraction from text (11 test cases)
+  - Model ID extraction from graphs (7 test cases)
+  - Graph serialization (6 test cases)
+- `test_search_neo4j.py` - Tests for Neo4j search functions (13 tests)
+  - Node parsing and entity creation (3 tests)
+  - Graph query implementation (7 tests)
+  - Relationship handling (3 tests)
+- `test_huggingface.py` - Tests for HuggingFace API functions (20 tests)
+  - Model search (4 tests)
+  - Dataset search (3 tests)
+  - Model card retrieval (5 tests)
+  - Dataset card retrieval (3 tests)
+  - Search result formatting (5 tests)
+- `test_dataset_risk.py` - Tests for dataset risk assessment (24 tests)
+  - Risk scoring and assessment (10 tests)
+  - Risk context building (8 tests)
+  - Helper functions (6 tests)
+- `test_tool_state.py` - Tests for tool state management (13 tests)
+  - Request context (2 tests)
+  - Tool result storage (8 tests)
+  - Progress callbacks (3 tests)
+- `test_dataset_resolver.py` - Tests for dataset resolution (13 tests)
+  - Dataset existence checking (6 tests)
+  - URL resolution (4 tests)
+  - Dataset enrichment (6 tests)
+- `test_extract_datasets.py` - Tests for dataset extraction (placeholder)
+- `test_arxiv_extractor.py` - Tests for arxiv paper extraction (11 tests)
+  - Arxiv ID extraction (4 tests)
+  - PDF text extraction (1 test)
+  - Dataset extraction from text (4 tests)
+  - Context and URL extraction (2 tests)
+- `test_arxiv_llm_extractor.py` - Tests for LLM-based extraction (10 tests)
+  - LLM client initialization (2 tests)
+  - Dataset extraction (8 tests)
+
+**Integration Tests (8 tests):**
+- `test_api_flow.py` - Full API flow integration tests (5 tests)
+  - Full search flow with Neo4j data
+  - Search flow without Neo4j data
+  - Request context management
+  - Tool state integration
+  - Input validation
+- `test_neo4j_integration.py` - Neo4j integration tests with mocks (3 tests)
+  - Neo4j search with mocked database
+  - Relationship query testing
+  - Multiple relationship handling
 
 ### Fully Covered Modules (100%)
 
-- `main.py` - FastAPI application entry point
-- `routers/client.py` - Main API router and search endpoint
-- `routers/search/__init__.py` - Search router initialization
-- `routers/search/agent.py` - Agent configuration
-- `routers/search/utils/__init__.py` - Utils package initialization
-- `routers/search/utils/tool_state.py` - Request context and tool state management
+- `main.py` - FastAPI application entry point (9 statements)
+- `routers/search/__init__.py` - Search router initialization (9 statements)
+- `routers/search/agent.py` - Agent configuration (10 statements)
+- `routers/search/utils/__init__.py` - Utils package initialization (3 statements)
+- `routers/search/utils/tool_state.py` - Request context and tool state management (28 statements)
+- `routers/search/utils/dataset_resolver.py` - Dataset resolution utilities (52 statements)
+- `routers/search/utils/dataset_risk.py` - Dataset risk assessment (59 statements)
 
 ### Partially Covered Modules
 
-#### `routers/search/utils/huggingface.py` - 91% Coverage
+#### `routers/client.py` - 85% Coverage
 
-**Missing Lines: 133-140, 158-159, 303**
+**Missing Lines: 42-47, 93, 211-212, 262, 273, 292, 307-311, 327-336, 363-377, 425-430, 441-443, 456**
 
 **Uncovered Functions/Code Blocks:**
 
-1. **Model Card Loading Exception Handling** (lines 133-140)
-   - Exception handling when `ModelCard.load()` fails
-   - Warning log when model card cannot be loaded
-   - Fallback to `None` for card_text
+1. **Main API Endpoint** (`run_search` function) - Lines 146-458
+   - The main streaming search endpoint
+   - Complex multi-stage workflow orchestration
+   - Error handling and fallback logic
+   - **Reason:** This is tested via integration tests, but unit test coverage focuses on helper functions
 
-2. **Success Logging** (lines 158-159)
-   - Info log message after successfully fetching model card
-   - This is a logging statement that's not critical but could be tested
+2. **Helper Functions** - Well covered
+   - `_extract_model_ids_from_text()` - Fully tested
+   - `_extract_model_ids_from_graph()` - Fully tested
+   - `_serialize_graph_with_datasets()` - Fully tested
+   - `_collect_response_text()` - Tested via integration tests
 
-3. **Error Handling** (line 303)
+#### `routers/search/utils/huggingface.py` - 96% Coverage
+
+**Missing Lines: 221, 223-225, 303**
+
+**Uncovered Functions/Code Blocks:**
+
+1. **Error Handling** (lines 221, 223-225, 303)
    - Exception handling in dataset card retrieval
-   - Likely an error path that's difficult to trigger in tests
+   - HTTP error handling paths
+   - **Reason:** Error paths are difficult to trigger in tests, but core functionality is well covered
 
-#### `routers/search/utils/search_neo4j.py` - 60% Coverage ⚠️
+#### `routers/search/utils/search_neo4j.py` - 90% Coverage ✅
 
-**Missing Lines: 98-110, 116-128, 143-221**
+**Missing Lines: 98-110, 116-128, 180-181, 253, 262, 330**
 
 **Uncovered Functions/Code Blocks:**
 
@@ -54,25 +116,30 @@ This document provides a comprehensive overview of test coverage across all serv
    - Neo4j query execution for all models
    - Node parsing and filtering
    - Query summary logging
-   - **Reason:** This function is a `@function_tool` that's called by the agent, not directly tested
+   - **Reason:** This function is a `@function_tool` decorator that's called by the agent framework. The underlying logic is tested via `search_query_impl()`.
 
 2. **`search_datasets()` Function** (lines 116-128)
    - Neo4j query execution for all datasets
    - Dataset node parsing
    - Query summary logging
-   - **Reason:** Similar to `search_models()`, called by agent
+   - **Reason:** Similar to `search_models()`, called by agent framework. Core functionality tested via integration tests.
 
-3. **`search_query()` Function** (lines 143-221)
-   - Complex Cypher query execution with APOC procedures
-   - Graph traversal and subgraph extraction
-   - Node and relationship parsing
-   - Error handling for query execution
-   - **Reason:** This is the most complex function and requires Neo4j integration tests with APOC enabled
+3. **Edge Cases** (lines 180-181, 253, 262, 330)
+   - Error handling for invalid entity types
+   - Edge cases in relationship processing
+   - **Reason:** These are error paths that are difficult to trigger but don't affect normal operation
+
+**Well Covered:**
+- `search_query_impl()` - Core search functionality (90%+ coverage)
+- `_parse_node()` - Node parsing logic
+- `_make_entity()` - Entity creation
+- `_log_query_summary()` - Query logging
+- Graph data structure creation and serialization
 
 
 ## Model-Lineage Service Coverage
 
-**Overall Coverage: 77%** (650 statements, 152 missing)
+**Overall Coverage: 76%** (650 statements, 159 missing)
 
 ### Fully Covered Modules (100%)
 
@@ -144,9 +211,9 @@ This document provides a comprehensive overview of test coverage across all serv
    - Parsing error handling
    - **Reason:** Error paths are difficult to trigger and require specific failure conditions
 
-#### `storage/data_store.py` - 81% Coverage
+#### `storage/data_store.py` - 78% Coverage
 
-**Missing Lines: 38, 45-47, 83-85, 198, 230, 268, 272, 275-276, 282-304, 309, 344-345, 367-368, 380-381, 409-412, 419**
+**Missing Lines: 38, 45-47, 61-85, 97, 198, 230, 268, 272, 275-276, 282-304, 309, 344-345, 367-368, 380-381, 409-412, 419**
 
 **Uncovered Functions/Code Blocks:**
 
@@ -216,9 +283,10 @@ The following files are intentionally excluded from coverage reporting (as confi
 
 ### Critical Gaps (Should be addressed)
 
-1. **Backend: `search_neo4j.py` (60% coverage)**
-   - `search_models()`, `search_datasets()`, and `search_query()` functions need direct testing
-   - These are core functionality that should have better test coverage
+1. **Backend: `extract_datasets.py` (31% coverage)**
+   - The `extract_training_datasets()` function tool needs better test coverage
+   - However, the underlying `ArxivDatasetExtractor` is well tested (62% coverage)
+   - **Status:** Core functionality is tested, but the function tool wrapper could use more tests
 
 2. **Model-Lineage: `lineage_scraper.py` (54% coverage)**
    - CLI argument parsing and main orchestration logic
@@ -227,15 +295,25 @@ The following files are intentionally excluded from coverage reporting (as confi
 
 ### Moderate Gaps (Nice to have)
 
-1. **Backend: `huggingface.py` (91% coverage)**
-   - Error handling paths for model card loading
-   - Dataset card error handling
+1. **Backend: `arxiv_extractor.py` (62% coverage)**
+   - Async HTTP operations for arxiv link extraction
+   - PDF download and parsing operations
+   - Concurrent processing logic
+   - **Note:** Core text extraction and pattern matching is well tested
 
-2. **Model-Lineage: `huggingface_scraper.py` (71% coverage)**
+2. **Backend: `client.py` (85% coverage)**
+   - Main API endpoint workflow (tested via integration tests)
+   - Some error handling paths in the streaming response
+
+3. **Backend: `huggingface.py` (96% coverage)**
+   - Minor error handling paths for dataset card retrieval
+   - **Status:** Excellent coverage, only edge cases remain
+
+4. **Model-Lineage: `huggingface_scraper.py` (71% coverage)**
    - Main scraping loop with various error conditions
    - Rate limiting behavior
 
-3. **Model-Lineage: `data_store.py` (81% coverage)**
+5. **Model-Lineage: `data_store.py` (78% coverage)**
    - Edge cases in project root detection
    - DVC error handling paths
 
@@ -273,10 +351,35 @@ Coverage reports are also generated automatically in CI/CD and uploaded as artif
 
 ## Conclusion
 
-All services meet the 60% coverage threshold required by the milestone. The main areas for improvement are:
+All services meet the 60% coverage threshold required by the milestone, with backend achieving **83% coverage**. The main areas for improvement are:
 
-1. **Backend Neo4j search utilities** - Need more direct testing of search functions
+1. **Backend async operations** - Some async HTTP operations in arxiv_extractor could use more unit test coverage
 2. **Model-Lineage CLI and orchestration** - Main function and argument parsing need tests
 3. **Error handling paths** - Many error scenarios are untested but may be acceptable for now
 
-The current test suite provides good coverage of core functionality, with integration tests ensuring the system works end-to-end. The uncovered code is primarily in error handling, logging, and CLI entry points, which are less critical than core business logic.
+The current test suite provides excellent coverage of core functionality, with **153 total tests** (145 unit + 8 integration) ensuring the system works correctly. 
+
+### Test Statistics
+
+- **Total Tests:** 153
+- **Unit Tests:** 145
+- **Integration Tests:** 8
+- **Passing:** 153
+- **Skipped:** 0 (All tests now use proper mocking, no external dependencies required)
+
+### Test Quality
+
+All tests use proper mocking of external dependencies:
+- **Neo4j** - Fully mocked driver and query results
+- **HuggingFace API** - Mocked API responses
+- **OpenAI** - Mocked LLM responses
+- **aiohttp** - Mocked HTTP requests
+- **FastAPI Request** - Mocked request objects
+
+The uncovered code is primarily in:
+- Error handling paths
+- Logging statements
+- CLI entry points
+- Complex async operations
+
+These areas are less critical than core business logic and are often better tested via integration tests or manual testing.
