@@ -357,7 +357,7 @@ All services meet the 60% coverage threshold required by the milestone, with bac
 2. **Model-Lineage CLI and orchestration** - Main function and argument parsing need tests
 3. **Error handling paths** - Many error scenarios are untested but may be acceptable for now
 
-The current test suite provides excellent coverage of core functionality, with **153 total tests** (145 unit + 8 integration) ensuring the system works correctly. 
+The current test suite provides excellent coverage of core functionality, with **153 total tests** (145 unit + 8 integration) ensuring the system works correctly.
 
 ### Test Statistics
 

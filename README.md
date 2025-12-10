@@ -10,7 +10,7 @@
 
 DataDetox is an interactive AI agent orchestration system that leverages MCP, graph-based data, and cloud infrastructure to trace ML data and model provenance, enabling practitioners to explore AI model lineages where otherwise there would exist a critical lack of transparency in model training data and upstream dependencies. Using Hugging Face model information and arXiv papers, the system traces how datasets and models connect across the AI ecosystem, helping developers identify hidden risks like copyrighted data or problematic datasets (e.g., LAION-5B, MS-Celeb-1M) that propagate downstream. Users may ask questions like “Tell me about any datasets or upstream models associated with Qwen3-4B” to assess model risk, receiving visual dependency graphs and clear answers instead of manually piecing together scattered documentation.
 
-To learn more, read our Medium blog post [here](https://medium.com/@kchattopadhyay/datadetox-ac215-final-project-0d8b6fdc6dcf?postPublishedType=initial)! 
+To learn more, read our Medium blog post [here](https://medium.com/@kchattopadhyay/datadetox-ac215-final-project-0d8b6fdc6dcf?postPublishedType=initial)!
 
 
 ### Documentation (in `/docs/`)
@@ -52,7 +52,7 @@ All source code is organized in the repository:
   - Individual Dockerfiles in each service directory
 
 - **Dummy Neo4j Container**: [`/neo4j/`](neo4j/)
-   - Dummy neo4j container directly pulled from the official Docker image for deployment 
+   - Dummy neo4j container directly pulled from the official Docker image for deployment
 
 ### CI Evidence
 
@@ -322,7 +322,7 @@ kubectl wait --for=condition=ready pod -l app=model-lineage -n datadetox-namespa
 
 # Exec into the container and run scraper
 kubectl exec -it deployment/model-lineage -n datadetox-namespace -- bash
-uv run python lineage_scraper.py --full --limit 25000 # WARNING: This will take a long time, adjust the limit as needed 
+uv run python lineage_scraper.py --full --limit 25000 # WARNING: This will take a long time, adjust the limit as needed
 
 # Scale back down when done
 kubectl scale deployment/model-lineage --replicas=0 -n datadetox-namespace
@@ -551,7 +551,7 @@ The application consists of the following services:
 - [ ] Add caching layer for frequently accessed models to reduce latency
 - [ ] Improve PDF parsing accuracy with better extraction algorithms
 - [ ] Add support for more model repositories beyond HuggingFace
-- [ ] Add monitor to proactively look out for risks associated with datasets and models 
+- [ ] Add monitor to proactively look out for risks associated with datasets and models
 - [ ] Enhance neo4j scalability with neo4j clustering
 - [ ] Add comprehensive error handling and user feedback
 - [ ] Add monitoring and alerting for production deployments
