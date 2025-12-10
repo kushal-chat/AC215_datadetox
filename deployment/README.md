@@ -193,6 +193,7 @@ pulumi config set run_model_lineage_on_setup true --stack dev
 ### Try some kubectl commands
 ```
 gcloud container clusters get-credentials <cluster-name> --zone <project-zone> --project <project-id>
+gcloud container clusters get-credentials datadetox-cluster --zone us-central1-a --project fit-bulwark-471117-v6
 kubectl get all
 kubectl get all --all-namespaces
 kubectl get pods --all-namespaces

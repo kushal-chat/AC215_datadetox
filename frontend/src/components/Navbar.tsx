@@ -15,29 +15,6 @@ const Navbar = () => {
               DataDetox
             </span>
           </Link>
-
-          <div className="flex items-center gap-6">
-            <Link
-              to="/"
-              className={`text-sm font-medium transition-colors ${
-                location.pathname === "/"
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Home
-            </Link>
-            <Link
-              to="/chatbot"
-              className={`text-sm font-medium transition-colors ${
-                location.pathname === "/chatbot"
-                  ? "text-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Chatbot
-            </Link>
-          </div>
         </div>
       </div>
     </nav>

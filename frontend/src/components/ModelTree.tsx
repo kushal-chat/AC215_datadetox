@@ -89,6 +89,14 @@ interface Neo4jNode {
   url?: string;
   likes?: number;
   tags?: string[];
+  training_datasets?: {  // Datasets extracted from arxiv papers
+    arxiv_url: string | null;
+    datasets: Array<{
+      name: string;
+      url?: string;
+      description?: string;
+    }>;
+  };
 }
 
 interface Neo4jRelationship {
@@ -117,6 +125,9 @@ interface DatasetInfo {
   downloads?: number;
   likes?: number;
   relationship?: string;
+  source?: 'neo4j' | 'arxiv';  // Where the dataset info came from
+  arxiv_url?: string;  // Link to arxiv paper (for arxiv-sourced datasets)
+  description?: string;  // Context from paper
 }
 
 interface TreeNode {
@@ -184,7 +195,8 @@ const buildTreeFromRelationships = (
         url: rel.target.url,
         downloads: rel.target.downloads,
         likes: rel.target.likes,
-        relationship: relType
+        relationship: relType,
+        source: 'neo4j',  // Mark as coming from neo4j relationships
       });
       return; // Don't add to tree structure
     }
@@ -204,6 +216,29 @@ const buildTreeFromRelationships = (
       childrenMap.set(targetId, new Map());
     }
     childrenMap.get(targetId)!.set(sourceId, relType);
+  });
+
+  // Merge arxiv-extracted training datasets into modelDatasets map
+  models.forEach(node => {
+    const modelId = getNodeId(node);
+
+    if (node.training_datasets && node.training_datasets.datasets.length > 0) {
+      if (!modelDatasets.has(modelId)) {
+        modelDatasets.set(modelId, []);
+      }
+
+      // Add each arxiv-extracted dataset
+      node.training_datasets.datasets.forEach(dataset => {
+        modelDatasets.get(modelId)!.push({
+          id: dataset.name,
+          url: dataset.url,
+          relationship: 'TRAINED_ON',  // Default relationship for training datasets
+          source: 'arxiv',  // Mark as coming from arxiv extraction
+          arxiv_url: node.training_datasets!.arxiv_url || undefined,
+          description: dataset.description,
+        });
+      });
+    }
   });
 
   // Find the root: the node with no parents (highest in the hierarchy)
@@ -294,6 +329,9 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
 
   // Parse datasets if available
   const datasets: DatasetInfo[] = attrs.datasetsJson ? JSON.parse(attrs.datasetsJson) : [];
+
+  // Check if node has children (to determine dataset placement)
+  const hasChildren = nodeDatum.children && nodeDatum.children.length > 0;
 
   const handleClick = () => {
     if (attrs.url) {
@@ -386,12 +424,18 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
         />
       )}
 
-      {/* Floating datasets - positioned below the model */}
+      {/* Floating datasets - positioned to avoid overlap */}
       {datasets.map((dataset, idx) => {
-        const datasetX = -65; // Center below the model card
-        const datasetY = cardY + cardHeight + 20 + (idx * 85); // Position below model card
+        // Place datasets to the right if node has children (to avoid overlap)
+        // Otherwise place below
         const datasetWidth = 130;
         const datasetHeight = 75;
+        const datasetX = hasChildren
+          ? 85  // To the right of the model card
+          : -65; // Center below the model card
+        const datasetY = hasChildren
+          ? cardY + (idx * 85)  // Stack vertically on the right
+          : cardY + cardHeight + 20 + (idx * 85); // Stack below
 
         const datasetNameParts = dataset.id.split('/');
         const datasetShortName = datasetNameParts[datasetNameParts.length - 1] || dataset.id;
@@ -400,10 +444,10 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
           <g key={dataset.id}>
             {/* Connection line from model to dataset */}
             <line
-              x1={0} // Center bottom of model card
-              y1={cardY + cardHeight}
-              x2={datasetX + datasetWidth / 2}
-              y2={datasetY}
+              x1={hasChildren ? 75 : 0} // Right edge if has children, center bottom otherwise
+              y1={hasChildren ? cardY + cardHeight / 2 : cardY + cardHeight}
+              x2={datasetX + (hasChildren ? 0 : datasetWidth / 2)}
+              y2={hasChildren ? datasetY + datasetHeight / 2 : datasetY}
               stroke="#64748b"
               strokeWidth={1.5}
               strokeDasharray="4 2"
@@ -417,8 +461,8 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
               width={datasetWidth}
               height={datasetHeight}
               rx={6}
-              fill="white"
-              stroke="#64748b"
+              fill={dataset.source === 'arxiv' ? "#faf5ff" : "white"}
+              stroke={dataset.source === 'arxiv' ? "#8b5cf6" : "#64748b"}
               strokeWidth={1.5}
               onClick={() => dataset.url && window.open(dataset.url, '_blank', 'noopener,noreferrer')}
               style={{ cursor: dataset.url ? 'pointer' : 'default', transition: 'all 0.2s' }}
@@ -427,7 +471,7 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
 
             {/* "Dataset" label in top left corner */}
             <text
-              fill="#64748b"
+              fill={dataset.source === 'arxiv' ? "#8b5cf6" : "#64748b"}
               strokeWidth="0"
               x={datasetX + 6}
               y={datasetY + 12}
@@ -435,7 +479,7 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
               fontWeight="600"
               style={{ pointerEvents: 'none' }}
             >
-              Dataset
+              {dataset.source === 'arxiv' ? 'Dataset (arXiv)' : 'Dataset'}
             </text>
 
             {/* Dataset name */}
@@ -484,10 +528,34 @@ const renderCustomNode = ({ nodeDatum, toggleNode, queriedModelId }: any) => {
               </g>
             )}
 
+            {/* arXiv paper icon (if available) */}
+            {dataset.arxiv_url && (
+              <g
+                transform={`translate(${datasetX + datasetWidth - 15}, ${datasetY + 28})`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(dataset.arxiv_url, '_blank', 'noopener,noreferrer');
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <circle r="7" fill="#8b5cf6" opacity="0.9" />
+                <text fill="white" strokeWidth="0" x="0" y="2.5" fontSize="7" textAnchor="middle" fontWeight="bold" style={{ pointerEvents: 'none' }}>
+                  📄
+                </text>
+              </g>
+            )}
+
             {/* External link icon for dataset */}
             {dataset.url && (
-              <g transform={`translate(${datasetX + datasetWidth - 15}, ${datasetY + 12})`}>
-                <circle r="7" fill="#64748b" opacity="0.9" />
+              <g
+                transform={`translate(${datasetX + datasetWidth - 15}, ${datasetY + 12})`}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.open(dataset.url, '_blank', 'noopener,noreferrer');
+                }}
+                style={{ cursor: 'pointer' }}
+              >
+                <circle r="7" fill={dataset.source === 'arxiv' ? "#8b5cf6" : "#64748b"} opacity="0.9" />
                 <text fill="white" strokeWidth="0" x="0" y="2.5" fontSize="7" textAnchor="middle" style={{ pointerEvents: 'none' }}>
                   ↗
                 </text>
@@ -712,13 +780,6 @@ const ModelTree = ({ neo4jData }: ModelTreeProps) => {
                 stroke: #3b82f6 !important;
                 stroke-width: 2.5 !important;
                 fill: none !important;
-                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-                cursor: pointer;
-              }
-              .rd3t-link:hover {
-                stroke: #60a5fa !important;
-                stroke-width: 4 !important;
-                filter: drop-shadow(0 0 12px rgba(59, 130, 246, 0.9));
               }
               .rd3t-node:hover .node-card {
                 filter: brightness(1.2);
@@ -729,14 +790,9 @@ const ModelTree = ({ neo4jData }: ModelTreeProps) => {
                 transition: filter 0.3s ease;
               }
               .relationship-label {
-                opacity: 0;
-                transition: opacity 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                opacity: 0.8;
+                transition: opacity 0.3s ease;
                 pointer-events: none;
-              }
-              /* Show relationship label when hovering over the edge */
-              .rd3t-link:hover ~ .rd3t-node .relationship-label,
-              g:hover > .rd3t-link ~ .rd3t-node .relationship-label {
-                opacity: 1 !important;
               }
             `}</style>
 

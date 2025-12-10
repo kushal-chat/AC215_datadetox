@@ -46,27 +46,24 @@ const Hero = () => {
               size="lg"
               variant="outline"
               className="text-lg px-8 py-6 border-2"
+              onClick={() => window.open('https://github.com/kushal-chat/AC215_datadetox/', '_blank', 'noopener,noreferrer')}
             >
               View Documentation
             </Button>
           </div>
 
-          <div className="mt-16 grid grid-cols-2 md:grid-cols-4 gap-8 max-w-3xl mx-auto">
+          <div className="mt-16 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-1">1000+</div>
-              <div className="text-sm text-muted-foreground">Models Tracked</div>
+              <div className="text-3xl font-bold text-primary mb-1">30,000+</div>
+              <div className="text-sm text-muted-foreground">Model & data dependencies tracked</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-1">500+</div>
-              <div className="text-sm text-muted-foreground">Datasets Analyzed</div>
+              <div className="text-3xl font-bold text-primary mb-1">Live</div>
+              <div className="text-sm text-muted-foreground">Streaming lineage and risk signals</div>
             </div>
             <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-1">24/7</div>
-              <div className="text-sm text-muted-foreground">Live Updates</div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary mb-1">100%</div>
-              <div className="text-sm text-muted-foreground">Open Source</div>
+              <div className="text-3xl font-bold text-primary mb-1">Actionable</div>
+              <div className="text-sm text-muted-foreground">Compliance-ready reporting</div>
             </div>
           </div>
         </div>

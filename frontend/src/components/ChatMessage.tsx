@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Bot, User } from "lucide-react";
+import { Bot, User, Link as LinkIcon, Clipboard } from "lucide-react";
 import ReactMarkdown, { Components } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 
@@ -21,30 +22,68 @@ interface ChatMessageProps {
 }
 
 const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatMessageProps) => {
+  const [isCopying, setIsCopying] = useState(false);
+
+  // Normalize message to auto-link common patterns before markdown rendering
+  const processedMessage = message
+    // Make "link: https://..." clickable (but ignore other words like "at:")
+    .replace(/(\blink)\s*:\s*(https?:\/\/\S+)/gi, '[$1]($2)')
+    // Convert "text (https://...)" patterns to markdown links
+    .replace(/(\S+)\s*\((https?:\/\/[^)]+)\)/g, '[$1]($2)')
+    // Drop lines that are only whitespace (including completely blank)
+    .replace(/^\s*\n/gm, '')
+    .replace(/^-[\s]*\n/gm, '')
+    .replace(/\n{2,}(?=-\s)/g, '\n')
+    .replace(/(-[^\n]+\n)\n+/g, '$1')
+    // Collapse any remaining multi-blank sequences to a single newline
+    .replace(/\n{2,}/g, '\n');
+
+  const handleCopy = async () => {
+    if (!message || isCopying || isThinking) return;
+    try {
+      setIsCopying(true);
+      await navigator.clipboard.writeText(message);
+    } finally {
+      setIsCopying(false);
+    }
+  };
+
   const markdownComponents: Components = {
     a: (props) => {
       const { children, ...rest } = props;
-      return <a {...rest} className="text-blue-600 hover:text-blue-700 underline font-medium" target="_blank" rel="noopener noreferrer">{children}</a>;
+      const href = (rest.href || "").toString();
+      const isArxiv = href.includes("arxiv.org/abs");
+      return (
+        <a
+          {...rest}
+          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-700 underline font-medium"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          {children}
+          {isArxiv && <LinkIcon className="w-3 h-3 opacity-80" />}
+        </a>
+      );
     },
     h1: (props) => {
       const { children, ...rest } = props;
-      return <h1 {...rest} className="text-lg font-bold mt-4 mb-2 text-foreground">{children}</h1>;
+      return <h1 {...rest} className="text-lg font-bold mt-0 mb-1 text-foreground">{children}</h1>;
     },
     h2: (props) => {
       const { children, ...rest } = props;
-      return <h2 {...rest} className="text-base font-bold mt-3 mb-2 text-foreground">{children}</h2>;
+      return <h2 {...rest} className="text-base font-bold mt-0 mb-1 text-foreground">{children}</h2>;
     },
     h3: (props) => {
       const { children, ...rest } = props;
-      return <h3 {...rest} className="text-sm font-bold mt-2 mb-1 text-foreground">{children}</h3>;
+      return <h3 {...rest} className="text-sm font-bold mt-0 mb-1 text-foreground">{children}</h3>;
     },
     ul: (props) => {
       const { children, ...rest } = props;
-      return <ul {...rest} className="list-disc pl-5 space-y-1 my-2">{children}</ul>;
+      return <ul {...rest} className="list-disc pl-5 space-y-[2px] my-1">{children}</ul>;
     },
     ol: (props) => {
       const { children, ...rest } = props;
-      return <ol {...rest} className="list-decimal pl-5 space-y-1 my-2">{children}</ol>;
+      return <ol {...rest} className="list-decimal pl-5 space-y-[2px] my-1">{children}</ol>;
     },
     li: (props) => {
       const { children, ...rest } = props;
@@ -91,24 +130,15 @@ const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatM
             {message}
           </p>
         ) : (
-          <div className="prose prose-sm dark:prose-invert max-w-none">
-            {isThinking ? (
-              <p className="text-sm leading-relaxed">
-                <span className="animate-pulse">{message}</span>
-              </p>
-            ) : (
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={markdownComponents}
-              >
-                {message}
-              </ReactMarkdown>
-            )}
+          <div className="prose prose-sm dark:prose-invert max-w-none whitespace-pre-wrap break-words prose-headings:my-1 prose-p:my-1 prose-ul:my-1 prose-ol:my-1 prose-li:my-[2px]">
+            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+              {processedMessage}
+            </ReactMarkdown>
           </div>
         )}
 
         {metadata && (
-          <div className="mt-3 pt-2 border-t border-border/50 text-xs text-muted-foreground space-y-1">
+          <div className="mt-3 pt-2 border-t border-border/50 text-xs text-muted-foreground space-y-1 relative">
             {metadata.searchTerms && (
               <div>Search terms: <span className="font-mono">{metadata.searchTerms}</span></div>
             )}
@@ -122,6 +152,16 @@ const ChatMessage = ({ message, isUser, timestamp, isThinking, metadata }: ChatM
                 {metadata.stageTimes.stage3 && <span>Stage 3 (Paper): {metadata.stageTimes.stage3}s</span>}
                 {metadata.stageTimes.total && <span className="font-semibold">Total: {metadata.stageTimes.total}s</span>}
               </div>
+            )}
+            {!isThinking && (
+              <button
+                onClick={handleCopy}
+                disabled={isCopying || !message}
+                className="absolute -bottom-2 -right-2 p-2 rounded-full bg-card border border-border shadow-sm hover:bg-accent transition-colors disabled:opacity-60"
+                title="Copy response"
+              >
+                <Clipboard className="w-4 h-4" />
+              </button>
             )}
           </div>
         )}

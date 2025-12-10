@@ -71,7 +71,7 @@ User Query → Frontend → Backend API → AI Agent
 ### Component Interactions (Brief)
 
 1. User enters a query.
-2. Frontend sends a POST request to `/flow/search`.
+2. Frontend sends a POST request to `backend/flow/search`.
 3. Backend sets up context for the agent.
 4. Agent fetches metadata from HuggingFace.
 5. Agent retrieves lineage data from Neo4j.

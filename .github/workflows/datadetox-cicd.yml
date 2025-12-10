@@ -47,12 +47,12 @@ jobs:
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
-          uv sync --dev
+          uv sync --group ci-cd
 
       - name: Run tests with coverage + Hypothesis
         working-directory: ./backend
         run: |
-          uv run pytest tests/ -v \
+          uv run -m pytest tests/unit/ -v \
             --cov=routers \
             --cov=main \
             --cov-report=term-missing \
@@ -68,12 +68,12 @@ jobs:
       - name: Install model-lineage dependencies
         working-directory: ./model-lineage
         run: |
-          uv sync --dev
+          uv sync --group ci-cd
 
       - name: Run model-lineage tests with coverage
         working-directory: ./model-lineage
         run: |
-          uv run pytest tests/ -v \
+          uv run -m pytest tests/unit/ -v \
             --cov=graph \
             --cov=scrapers \
             --cov=storage \
@@ -143,7 +143,7 @@ jobs:
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
-          uv sync --dev
+          uv sync --group ci-cd
 
       - name: Run backend integration tests
         working-directory: ./backend
@@ -155,12 +155,12 @@ jobs:
           NEO4J_TEST_USER: neo4j
           NEO4J_TEST_PASSWORD: test_password
         run: |
-          uv run pytest tests/integration/ -v -m integration
+          uv run -m pytest tests/integration/ -v
 
       - name: Install model-lineage dependencies
         working-directory: ./model-lineage
         run: |
-          uv sync --dev
+          uv sync --group ci-cd
 
       - name: Run model-lineage integration tests
         working-directory: ./model-lineage
@@ -169,7 +169,7 @@ jobs:
           NEO4J_USER: neo4j
           NEO4J_PASSWORD: test_password
         run: |
-          uv run pytest tests/integration/ -v
+          uv run -m pytest tests/integration/ -v
 
       - name: Install frontend dependencies
         working-directory: ./frontend

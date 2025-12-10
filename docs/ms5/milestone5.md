@@ -13,12 +13,12 @@
 
 3. Public Communication and Presentation Materials
 - [ ] Prepare a polished 6-minute video describing and demonstrating your project.
-- [ ] Write a 600–800 word Medium blog post explaining your project to a general audience.
-- [ ] Create engaging booth materials for the showcase (e.g., diagrams, QR codes).
+- [X] Write a 600–800 word Medium blog post explaining your project to a general audience.
+- [X] Create engaging booth materials for the showcase (e.g., diagrams, QR codes).
 
 4. Showcase Preparation
-- [ ] Ensure your application is publicly accessible, stable, and easy to demo.
-- [ ] Prepare to explain your architecture, decisions, and business value to visitors.
+- [X] Ensure your application is publicly accessible, stable, and easy to demo.
+- [X] Prepare to explain your architecture, decisions, and business value to visitors.
 
 ## Deliverables
 ### 1. Technical Implementation
@@ -40,14 +40,14 @@
         - Validation checks to ensure only models meeting performance thresholds are deployed.
 
 ### 2. Documentation
-- [ ] GitHub Repository:
-    - [ ] Include a well-structured and modular codebase.
-    - [ ] Provide a comprehensive README file with the following sections:
-        - [ ] Prerequisites and setup instructions.
-        - [ ] Deployment instructions.
-        - [ ] Usage details and examples.
-        - [ ] Known issues and limitations.
-    - [ ] Submit the `main` branch for this deliverable.
+- [X] GitHub Repository:
+    - [X] Include a well-structured and modular codebase.
+    - [X] Provide a comprehensive README file with the following sections:
+        - [X] Prerequisites and setup instructions.
+        - [X] Deployment instructions.
+        - [X] Usage details and examples.
+        - [X] Known issues and limitations.
+    - [X] Submit the `main` branch for this deliverable.
 
 ### 3. Presentation Materials
 - [ ] Video Presentation:
@@ -57,11 +57,9 @@
         - Live demo of the application in action.
         - Challenges faced and solutions implemented.
     - [ ] Submit the video in MP4 format or YouTube link with a minimum resolution of 720p.
-- [ ] Blog Post:
+- [X] Blog Post:
     - Write a 600–800 word Medium blog post summarizing your project for a general audience. The post should highlight the problem, solution, technical approach, and impact.
     - Include visuals or diagrams where appropriate.
-- [ ] Self and Peer Review Forms:
-    - Complete self-assessment and peer evaluation forms to provide feedback on team contributions.
 
 ### 4. Showcase (Dec 10th)
 - Event Format:
