@@ -10,7 +10,7 @@
 
 DataDetox is an interactive AI agent orchestration system that leverages MCP, graph-based data, and cloud infrastructure to trace ML data and model provenance, enabling practitioners to explore AI model lineages where otherwise there would exist a critical lack of transparency in model training data and upstream dependencies. Using Hugging Face model information and arXiv papers, the system traces how datasets and models connect across the AI ecosystem, helping developers identify hidden risks like copyrighted data or problematic datasets (e.g., LAION-5B, MS-Celeb-1M) that propagate downstream. Users may ask questions like “Tell me about any datasets or upstream models associated with Qwen3-4B” to assess model risk, receiving visual dependency graphs and clear answers instead of manually piecing together scattered documentation.
 
-To learn more, read our Medium blog post [here](https://medium.com/@kchattopadhyay/datadetox-ac215-final-project-0d8b6fdc6dcf?postPublishedType=initial)!
+To learn more, read our [Medium blog post](https://medium.com/@kchattopadhyay/datadetox-ac215-final-project-0d8b6fdc6dcf?postPublishedType=initial) and watch our [video demo](https://www.youtube.com/watch?v=bCy9Xm_jdP8)! 
 
 
 ### Documentation (in `/docs/`)
