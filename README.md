@@ -78,7 +78,7 @@ All source code is organized in the repository:
     ![](assets/img/ms5/updated_chatbot_ui.png)
 
 - Agentic Workflow:
-    ![](assets/img/ms1/workflow.svg)
+    ![](assets/img/ms5/technical_workflow.png)
 
 ## Prerequisites
 
@@ -347,7 +347,7 @@ The application is automatically deployed when changes are merged to the `main` 
 
 #### Scaling the Application
 
-The Kubernetes deployment supports horizontal pod autoscaling. To manually scale:
+The Kubernetes deployment supports horizontal pod autoscaling. It automatically scales the number of pods in response to load. To manually scale:
 
 ```bash
 # Scale backend

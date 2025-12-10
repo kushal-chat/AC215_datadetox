@@ -12,7 +12,7 @@
 - [X] Ensure merges to main trigger an automated build-and-deploy pipeline.
 
 3. Public Communication and Presentation Materials
-- [ ] Prepare a polished 6-minute video describing and demonstrating your project.
+- [X] Prepare a polished 6-minute video describing and demonstrating your project.
 - [X] Write a 600–800 word Medium blog post explaining your project to a general audience.
 - [X] Create engaging booth materials for the showcase (e.g., diagrams, QR codes).
 
@@ -50,13 +50,13 @@
     - [X] Submit the `main` branch for this deliverable.
 
 ### 3. Presentation Materials
-- [ ] Video Presentation:
-    - [ ] Record a 6-minute video covering:
+- [X] Video Presentation:
+    - [X] Record a 6-minute video covering:
         - Problem statement and the proposed solution.
         - Technical architecture and key components.
         - Live demo of the application in action.
         - Challenges faced and solutions implemented.
-    - [ ] Submit the video in MP4 format or YouTube link with a minimum resolution of 720p.
+    - [X] Submit the video in MP4 format or YouTube link with a minimum resolution of 720p.
 - [X] Blog Post:
     - Write a 600–800 word Medium blog post summarizing your project for a general audience. The post should highlight the problem, solution, technical approach, and impact.
     - Include visuals or diagrams where appropriate.
